@@ -7,7 +7,6 @@
     "dev": "tsx src/index.ts",
     "build": "tsc && prisma generate",
     "start": "node dist/index.js",
-    
     "start:dev": "tsx src/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
@@ -39,7 +38,6 @@
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1"
-    
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
