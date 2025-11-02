@@ -49,11 +49,7 @@ const SearchProviders: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch providers from API
-  useEffect(() => {
-    fetchProviders();
-  }, [city, state, selectedService, minRating, priceRange]);
-
-  const fetchProviders = async () => {
+  const fetchProviders = React.useCallback(async () => {
     try {
       setLoading(true);
       const params: any = {};
@@ -73,7 +69,11 @@ const SearchProviders: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [city, state, selectedService, minRating, priceRange]);
+
+  useEffect(() => {
+    fetchProviders();
+  }, [fetchProviders]);
 
   const serviceTypes = [
     'Regular Cleaning',

@@ -73,13 +73,7 @@ const ProviderProfile: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<'about' | 'services' | 'reviews'>('services');
   const [submittingBooking, setSubmittingBooking] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchProvider();
-    }
-  }, [id]);
-
-  const fetchProvider = async () => {
+  const fetchProvider = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/api/providers/${id}`);
@@ -91,7 +85,13 @@ const ProviderProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchProvider();
+    }
+  }, [id, fetchProvider]);
 
   const calculateDuration = () => {
     if (!selectedTime || !endTime) return 0;

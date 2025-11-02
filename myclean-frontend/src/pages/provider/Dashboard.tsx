@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaCalendar, FaDollarSign, FaCheckCircle, FaClock, FaChartLine, FaStar, FaUserEdit, FaComments, FaExclamationCircle, FaBell } from 'react-icons/fa';
+import { FaCalendar, FaDollarSign, FaCheckCircle, FaClock, FaChartLine, FaStar, FaUserEdit, FaComments, FaBell } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/Card';
 import { format } from 'date-fns';
@@ -52,13 +52,7 @@ const ProviderDashboard: React.FC = () => {
     upcomingJobs: 0,
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
-
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     if (!user) return;
 
     try {
@@ -76,7 +70,6 @@ const ProviderDashboard: React.FC = () => {
 
       // Calculate stats
       const completed = allBookings.filter((b: Booking) => b.status === 'COMPLETED');
-      const pending = allBookings.filter((b: Booking) => b.status === 'PENDING');
       const accepted = allBookings.filter((b: Booking) => b.status === 'ACCEPTED');
 
       const totalEarnings = completed.reduce((sum: number, b: Booking) => sum + b.totalPrice, 0);
@@ -96,7 +89,13 @@ const ProviderDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user, fetchData]);
 
   const handleAccept = async (bookingId: number) => {
     if (!user) return;
