@@ -5,14 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "rm -rf dist && npx tsc && npx prisma generate",
+    "build": "tsc && npx prisma generate",
     "start": "node dist/index.js",
     "start:dev": "tsx src/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push",
     "seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "npm run build && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
