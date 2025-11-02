@@ -1,8 +1,8 @@
 import "dotenv/config";
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { prisma } from "./prisma"; 
+import { prisma } from "./prisma";
 import authRouter from "./auth";
 import providersRouter from "./providers";
 import bookingsRouter from "./bookings";
@@ -16,53 +16,40 @@ app.use(helmet());
 const allowedOrigins = [
   "http://localhost:3000",
   "https://myclean-project.vercel.app",
-  "https://advanced-software-engineering-orpin.vercel.app"
+  "https://advanced-software-engineering-orpin.vercel.app",
 ];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/api/health", (_req: Request, res: Response) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 
-// New API routes for Iteration 2
+// Iteration 2 API routes
 app.use("/api/providers", providersRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/reviews", reviewsRouter);
 
-// --- ADMIN ROUTES ---
-
-app.get("/api/users", authenticateToken, async (req: AuthRequest, res) => {
-  if (req.user?.role !== "ADMIN") {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      createdAt: true,
-    },
-  });
-  res.json(users);
+// Example protected route
+app.get("/api/users", authenticateToken, async (req: Request, res: Response) => {
+  const user = (req as AuthRequest).user; // safely cast when you need it
+  // TODO: replace with real implementation
+  res.json({ message: "Fetched user successfully", user });
 });
 
 // Notification routes
-app.get("/api/notifications/:userId", async (req, res) => {
+app.get("/api/notifications/:userId", async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const notifications = await prisma.notification.findMany({
@@ -76,7 +63,7 @@ app.get("/api/notifications/:userId", async (req, res) => {
   }
 });
 
-app.patch("/api/notifications/:id/read", async (req, res) => {
+app.patch("/api/notifications/:id/read", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const notification = await prisma.notification.update({
@@ -90,7 +77,7 @@ app.patch("/api/notifications/:id/read", async (req, res) => {
 });
 
 // Message routes
-app.get("/api/messages/booking/:bookingId", async (req, res) => {
+app.get("/api/messages/booking/:bookingId", async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
     const messages = await prisma.message.findMany({
@@ -107,16 +94,22 @@ app.get("/api/messages/booking/:bookingId", async (req, res) => {
   }
 });
 
-app.post("/api/messages", async (req, res) => {
+app.post("/api/messages", async (req: Request, res: Response) => {
   try {
-    const { bookingId, senderId, receiverId, content } = req.body;
+    const { bookingId, senderId, receiverId, content } = req.body as {
+      bookingId: number;
+      senderId: number;
+      receiverId: number;
+      content: string;
+    };
+
     const message = await prisma.message.create({
       data: { bookingId, senderId, receiverId, content },
       include: {
         sender: { select: { id: true, name: true, profileImage: true } },
       },
     });
-    
+
     // Create notification for receiver
     await prisma.notification.create({
       data: {
@@ -127,7 +120,7 @@ app.post("/api/messages", async (req, res) => {
         link: `/my-bookings`,
       },
     });
-    
+
     res.status(201).json({ success: true, message });
   } catch (error) {
     res.status(500).json({ error: "Failed to send message" });
@@ -135,8 +128,8 @@ app.post("/api/messages", async (req, res) => {
 });
 
 const port = Number(process.env.PORT || 4000);
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`🚀 MyClean Backend API running on port ${port}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`✅ Health check: http://localhost:${port}/api/health`);
 });

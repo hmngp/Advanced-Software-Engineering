@@ -1,39 +1,40 @@
-import { Request, Response, NextFunction } from 'express';
+// src/middleware.ts
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-interface MyTokenPayload {
-  sub: number;
-  role: string;
-}
+type AuthUser = { sub: number; role: string };
 
-export interface AuthRequest extends Request {
-  user?: {
-    sub: number;
-    role: string;
-  };
-}
+// WIDEN the user type so it's compatible with any augmentation elsewhere
+export type AuthRequest = Request & { user?: AuthUser | string | JwtPayload };
 
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+export const authenticateToken: RequestHandler = (req, res, next) => {
+  const authHeader = req.get('authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
 
-  if (token == null) return res.sendStatus(401);
+  if (!token) {
+    res.sendStatus(401); // don't "return res..." -> keep return type void
+    return;
+  }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    if (typeof payload === 'string') return res.sendStatus(401);
+    if (typeof payload === 'string') {
+      res.sendStatus(401);
+      return;
+    }
 
-    const typedPayload = payload as unknown as MyTokenPayload;
-    if (!typedPayload.sub || !typedPayload.role) return res.sendStatus(401);
+    const { sub, role } = payload as any;
+    if (sub == null || role == null) {
+      res.sendStatus(401);
+      return;
+    }
 
-    req.user = {
-      sub: typedPayload.sub,
-      role: typedPayload.role,
-    };
+    // attach a normalized user object
+    (req as AuthRequest).user = { sub: Number(sub), role: String(role) };
     next();
-  } catch (err) {
-    return res.sendStatus(403);
+  } catch {
+    res.sendStatus(403);
   }
 };
