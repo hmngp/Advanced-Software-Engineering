@@ -1,194 +1,39 @@
-import { Router } from "express";
-import { prisma } from "./prisma";
-import { z } from "zod";
+import { Router, Request, Response } from 'express';
+import { prisma } from './prisma';
 
 const router = Router();
 
-// Search providers with filters
-router.get("/search", async (req, res) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
-    const { city, state, zipCode, service, minRating, maxPrice, date } = req.query;
-
-    // Build where clause dynamically
-    const where: any = {
-      role: "PROVIDER",
-      providerProfile: {
-        isActive: true,
-        isVerified: true,
-      },
-    };
-
-    if (city) {
-      where.providerProfile.city = { contains: city as string, mode: "insensitive" };
-    }
-
-    if (state) {
-      where.providerProfile.state = state;
-    }
-
-    if (zipCode) {
-      where.providerProfile.zipCode = zipCode;
-    }
-
-    if (minRating) {
-      where.providerProfile.averageRating = { gte: parseFloat(minRating as string) };
-    }
-
-    // Get providers with their profiles and services
-    const providers = await prisma.user.findMany({
-      where,
+    const providers = await prisma.providerProfile.findMany({
+      where: { isActive: true },
       include: {
-        providerProfile: {
-          include: {
-            services: {
-              where: {
-                isActive: true,
-                ...(service && { serviceName: { contains: service as string, mode: "insensitive" } }),
-                ...(maxPrice && { pricePerHour: { lte: parseInt(maxPrice as string) * 100 } }),
-              },
-            },
-            availability: true,
-          },
-        },
+        user: { select: { id: true, name: true, profileImage: true } },
+        services: true,
       },
+      orderBy: { averageRating: 'desc' },
     });
-
-    // Filter out providers without any matching services
-    const filteredProviders = providers.filter(p => 
-      p.providerProfile?.services && p.providerProfile.services.length > 0
-    );
-
-    // Format response
-    const formattedProviders = filteredProviders.map(provider => ({
-      id: provider.id,
-      name: provider.name,
-      email: provider.email,
-      phone: provider.phone,
-      profileImage: provider.profileImage,
-      profile: {
-        bio: provider.providerProfile?.bio,
-        yearsExperience: provider.providerProfile?.yearsExperience,
-        city: provider.providerProfile?.city,
-        state: provider.providerProfile?.state,
-        zipCode: provider.providerProfile?.zipCode,
-        averageRating: provider.providerProfile?.averageRating,
-        totalReviews: provider.providerProfile?.totalReviews,
-        totalBookings: provider.providerProfile?.totalBookings,
-        hasInsurance: provider.providerProfile?.hasInsurance,
-        hasVehicle: provider.providerProfile?.hasVehicle,
-        hasEquipment: provider.providerProfile?.hasEquipment,
-      },
-      services: provider.providerProfile?.services.map(s => ({
-        id: s.id,
-        name: s.serviceName,
-        description: s.description,
-        pricePerHour: s.pricePerHour / 100, // Convert cents to dollars
-        durationMin: s.durationMin,
-      })),
-      availability: provider.providerProfile?.availability,
-    }));
-
-    res.json({
-      success: true,
-      count: formattedProviders.length,
-      providers: formattedProviders,
-    });
-  } catch (error) {
-    console.error("Search error:", error);
-    res.status(500).json({ error: "Failed to search providers" });
+    res.json({ success: true, providers });
+  } catch {
+    res.status(500).json({ error: 'Failed to list providers' });
   }
 });
 
-// Get single provider details
-router.get("/:id", async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-
-    const provider = await prisma.user.findUnique({
-      where: { id: parseInt(id), role: "PROVIDER" },
+    const id = Number(req.params.id);
+    const profile = await prisma.providerProfile.findUnique({
+      where: { id },
       include: {
-        providerProfile: {
-          include: {
-            services: {
-              where: { isActive: true },
-            },
-            availability: true,
-          },
-        },
-        providerBookings: {
-          where: { status: "COMPLETED" },
-          include: {
-            review: true,
-            customer: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        },
+        user: { select: { id: true, name: true, profileImage: true } },
+        services: true,
       },
     });
-
-    if (!provider || !provider.providerProfile) {
-      return res.status(404).json({ error: "Provider not found" });
-    }
-
-    // Calculate review statistics
-    const reviews = provider.providerBookings
-      .filter(b => b.review)
-      .map(b => ({
-        id: b.review!.id,
-        rating: b.review!.rating,
-        comment: b.review!.comment,
-        photos: b.review!.photos,
-        customerName: b.customer.name,
-        createdAt: b.review!.createdAt,
-      }));
-
-    const formattedProvider = {
-      id: provider.id,
-      name: provider.name,
-      email: provider.email,
-      phone: provider.phone,
-      profileImage: provider.profileImage,
-      profile: {
-        bio: provider.providerProfile.bio,
-        yearsExperience: provider.providerProfile.yearsExperience,
-        city: provider.providerProfile.city,
-        state: provider.providerProfile.state,
-        zipCode: provider.providerProfile.zipCode,
-        address: provider.providerProfile.address,
-        averageRating: provider.providerProfile.averageRating,
-        totalReviews: provider.providerProfile.totalReviews,
-        totalBookings: provider.providerProfile.totalBookings,
-        hasInsurance: provider.providerProfile.hasInsurance,
-        insuranceProvider: provider.providerProfile.insuranceProvider,
-        hasVehicle: provider.providerProfile.hasVehicle,
-        hasEquipment: provider.providerProfile.hasEquipment,
-        certifications: provider.providerProfile.certifications,
-      },
-      services: provider.providerProfile.services.map(s => ({
-        id: s.id,
-        name: s.serviceName,
-        description: s.description,
-        pricePerHour: s.pricePerHour / 100,
-        durationMin: s.durationMin,
-      })),
-      availability: provider.providerProfile.availability,
-      reviews,
-    };
-
-    res.json({
-      success: true,
-      provider: formattedProvider,
-    });
-  } catch (error) {
-    console.error("Get provider error:", error);
-    res.status(500).json({ error: "Failed to get provider details" });
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+    res.json({ success: true, profile });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
 export default router;
-
