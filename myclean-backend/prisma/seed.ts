@@ -1,103 +1,70 @@
 /// <reference types="node" />
-
-import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('🌱 Seeding...');
+  await prisma.message.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.providerService.deleteMany();
+  await prisma.providerAvailability.deleteMany();
+  await prisma.providerProfile.deleteMany();
+  await prisma.user.deleteMany();
 
-  await prisma.$transaction([
-    prisma.message.deleteMany(),
-    prisma.notification.deleteMany(),
-    prisma.review.deleteMany(),
-    prisma.booking.deleteMany(),
-    prisma.providerService.deleteMany(),
-    prisma.providerAvailability.deleteMany(),
-    prisma.providerProfile.deleteMany(),
-    prisma.user.deleteMany(),
-  ]);
+  const password1 = await bcrypt.hash('customer123', 10);
+  const password2 = await bcrypt.hash('provider123', 10);
 
-  console.log('✅ Old data cleared.');
-
-  const customerPasswordHash = await bcrypt.hash('Customer@123', 10);
-  const providerPasswordHash = await bcrypt.hash('Provider@123', 10);
-
-  const customer1 = await prisma.user.create({
+  const customer = await prisma.user.create({
     data: {
       email: 'customer@example.com',
       name: 'Test Customer',
-      passwordHash: customerPasswordHash,
+      passwordHash: password1,
       role: 'CUSTOMER',
     },
   });
 
-  const provider1 = await prisma.user.create({
+  const providerUser = await prisma.user.create({
     data: {
       email: 'provider@example.com',
       name: 'Test Provider',
-      passwordHash: providerPasswordHash,
+      passwordHash: password2,
       role: 'PROVIDER',
     },
   });
 
-  const profile1 = await prisma.providerProfile.create({
+  const profile = await prisma.providerProfile.create({
     data: {
-      userId: provider1.id,
-      bio: 'Experienced cleaner available for all your needs.',
+      userId: providerUser.id,
+      bio: 'Experienced cleaner available.',
       yearsExperience: '5',
       isVerified: true,
       isActive: true,
       averageRating: 4.5,
-      totalReviews: 1,
+      totalReviews: 1
+      // visibility: 'ALL' // if you keep the enum
     },
   });
 
-  const service1 = await prisma.providerService.create({
+  await prisma.providerService.create({
     data: {
-      providerId: profile1.id,
+      providerId: profile.id,
       serviceName: 'Standard Home Cleaning',
       pricePerHour: 3000,
       durationMin: 120,
     },
   });
 
-  const booking1 = await prisma.booking.create({
-    data: {
-      customerId: customer1.id,
-      providerId: provider1.id,
-      serviceId: service1.id,
-      bookingDate: new Date(),
-      startTime: '10:00',
-      endTime: '12:00',
-      address: '123 Main St',
-      city: 'Testville',
-      state: 'TS',
-      zipCode: '12345',
-      status: 'ACCEPTED',
-      totalPrice: 6000,
-      paymentStatus: 'PAID',
-    },
-  });
-
-  await prisma.notification.create({
-    data: {
-      userId: customer1.id,
-      type: 'BOOKING_ACCEPTED',
-      title: 'Booking Accepted!',
-      message: `Your booking #${booking1.id} with Test Provider has been accepted.`,
-    },
-  });
-
-  console.log('✅ Database seed complete!');
+  console.log('✅ Seed complete!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding database:', e);
-    process.exitCode = 1; // ✅ safe exit
+    console.error(e);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();
