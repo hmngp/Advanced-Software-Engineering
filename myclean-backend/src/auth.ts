@@ -58,9 +58,15 @@ if (user.role === "PROVIDER") {
 }
 
 
-  return res
-    .status(201)
-    .json({ id: user.id, email: user.email, name: user.name, role: user.role });
+  // Issue token on successful registration
+  const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+  return res.status(201).json({
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+  });
 });
 
 // Schema for login credentials
