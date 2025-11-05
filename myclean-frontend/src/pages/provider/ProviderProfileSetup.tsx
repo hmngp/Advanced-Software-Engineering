@@ -170,10 +170,18 @@ const ProviderProfileSetup: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Profile creation error:', err);
+      console.error('Error response:', err.response?.data);
+      
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.data?.details) {
-        setError('Please fill in all required fields correctly');
+        // Zod validation errors - show detailed message
+        const validationErrors = err.response.data.details;
+        console.error('Validation errors:', validationErrors);
+        const errorMessages = validationErrors.map((e: any) => 
+          `${e.path.join('.')}: ${e.message}`
+        ).join('\n');
+        setError(`Validation errors:\n${errorMessages}`);
       } else {
         setError('Failed to create profile. Please check your connection and try again.');
       }
@@ -566,14 +574,13 @@ const ProviderProfileSetup: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Profile Photo *
+                  Profile Photo (Optional)
                 </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  required
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   A clear, professional headshot helps build trust with customers
@@ -609,14 +616,13 @@ const ProviderProfileSetup: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Government-Issued ID *
+                      Government-Issued ID (Optional)
                     </label>
                     <input
                       type="file"
                       accept="image/*,.pdf"
                       onChange={(e) => setIdDocument(e.target.files?.[0] || null)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      required
                     />
                     <p className="text-sm text-gray-500 mt-1">
                       Driver's license, passport, or national ID card
@@ -641,10 +647,9 @@ const ProviderProfileSetup: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Verification Process:</strong> Your documents will be reviewed within 24-48 hours. 
-                    You'll receive an email once your account is verified and you can start accepting bookings.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> Photos and documents are optional. You can complete your profile without them and start accepting bookings immediately. You can always upload them later to build more trust with customers.
                   </p>
                 </div>
               </div>
