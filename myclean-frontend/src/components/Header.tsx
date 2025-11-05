@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api } from "../Services/api";
 
 export default function Header() {
   const [ok, setOk] = useState<boolean | null>(null);

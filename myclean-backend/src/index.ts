@@ -8,6 +8,7 @@ import providersRouter from "./providers";
 import bookingsRouter from "./bookings";
 import reviewsRouter from "./reviews";
 import { authenticateToken, AuthRequest } from "./middleware";
+import servicesRoute from "./servicesRoute";
 
 const app = express();
 app.use(helmet());
@@ -18,6 +19,7 @@ const allowedOrigins = [
   "https://myclean-project.vercel.app",
   "https://advanced-software-engineering-orpin.vercel.app",
 ];
+app.use("/api/services", servicesRoute);
 
 app.use(
   cors({

@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { FaSearch, FaStar, FaMapMarkerAlt, FaDollarSign, FaFilter } from 'react-icons/fa';
-import Card from '../../components/Card';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// src/pages/customer/SearchProviders.tsx
+import React, { useEffect, useState } from "react";
+import { FaSearch, FaStar, FaMapMarkerAlt, FaDollarSign, FaFilter } from "react-icons/fa";
+import Card from "../../components/Card";
+import { useNavigate } from "react-router-dom";
+import { fetchProviders, type ProviderProfile } from "../../Services/providers"; // ← adjust casing if needed
 
-interface Service {
-  id: number;
+// UI types for card rendering
+interface ServiceUI {
+  id?: number;
   name: string;
-  description?: string;
-  pricePerHour: number;
+  pricePerHour: number; // cents
   durationMin: number;
 }
 
-interface Provider {
+interface ProviderUI {
   id: number;
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   profileImage: string | null;
+  isVerified?: boolean;
   profile: {
     bio?: string;
     yearsExperience?: string;
@@ -31,64 +33,130 @@ interface Provider {
     hasVehicle?: boolean;
     hasEquipment?: boolean;
   };
-  services: Service[];
-  availability: any[];
+  services: ServiceUI[];
 }
 
 const SearchProviders: React.FC = () => {
   const navigate = useNavigate();
-  const [providers, setProviders] = useState<Provider[]>([]);
+
+  const [providers, setProviders] = useState<ProviderUI[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
-  const [selectedService, setSelectedService] = useState('');
+  const [error, setError] = useState("");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]); // dollars
+  const [selectedService, setSelectedService] = useState("");
   const [minRating, setMinRating] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch providers from API
+  // Load providers (and poll every 10s)
   useEffect(() => {
-    fetchProviders();
-  }, [city, state, selectedService, minRating, priceRange]);
+    let timer: number | null = null;
 
-  const fetchProviders = async () => {
-    try {
-      setLoading(true);
-      const params: any = {};
-      
-      if (city) params.city = city;
-      if (state) params.state = state;
-      if (selectedService) params.service = selectedService;
-      if (minRating > 0) params.minRating = minRating;
-      if (priceRange[1] < 100) params.maxPrice = priceRange[1];
+    async function load() {
+      try {
+        setLoading(true);
+        const data = await fetchProviders(); // GET /api/providers
+       const mapped: ProviderUI[] = data.map((p: ProviderProfile) => ({
+        id: p.id,
+  name: p.user?.name ?? "Cleaner",
+  email: undefined,
+  phone: undefined,
+  profileImage: p.user?.profileImage ?? null,
+  isVerified: p.isVerified ?? false,
+  profile: {
+    bio: p.bio ?? "",
+    yearsExperience: p.yearsExperience ?? "",
+    city: p.city ?? "",
+    state: p.state ?? "",
+    zipCode: p.zipCode ?? "",
+    averageRating: p.averageRating ?? undefined,
+    totalReviews: p.totalReviews ?? undefined,
+    totalBookings: p.totalBookings ?? undefined,
+    hasInsurance: p.hasInsurance ?? undefined,
+    hasVehicle: p.hasVehicle ?? undefined,
+    hasEquipment: p.hasEquipment ?? undefined,
+  },
+  services: (p.services ?? []).map((s) => ({
+    id: (s as any).id,              // if included by Prisma
+    name: s.serviceName,            // backend field
+    pricePerHour: s.pricePerHour ?? 0, // cents
+    durationMin: s.durationMin,
+  })),
+}));
 
-      const response = await axios.get('/api/providers/search', { params });
-      setProviders(response.data.providers || []);
-      setError('');
-    } catch (err) {
-      console.error('Error fetching providers:', err);
-      setError('Failed to load providers. Please try again.');
-    } finally {
-      setLoading(false);
+        setProviders(mapped);
+        setError("");
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load providers. Please try again.");
+      } finally {
+        setLoading(false);
+      }
     }
-  };
 
+    load(); // initial
+    timer = window.setInterval(load, 10_000); // poll every 10s
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
+  // Static filter options (client-side)
   const serviceTypes = [
-    'Regular Cleaning',
-    'Deep Cleaning',
-    'Move-out Cleaning',
-    'Office Cleaning',
-    'Carpet Cleaning',
-    'Window Cleaning',
+    "Regular Cleaning",
+    "Deep Cleaning",
+    "Move-out Cleaning",
+    "Office Cleaning",
+    "Carpet Cleaning",
+    "Window Cleaning",
   ];
+  const australianStates = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 
-  const australianStates = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
+  // Client-side filtering until you add /api/providers/search
+  const filteredProviders = providers.filter((provider) => {
+    const matchesSearch =
+      !searchTerm || provider.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const filteredProviders = providers.filter(provider => {
-    const matchesSearch = !searchTerm || provider.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesState =
+      !state || (provider.profile.state ?? "").toLowerCase() === state.toLowerCase();
+
+    const matchesCity =
+      !city || (provider.profile.city ?? "").toLowerCase().includes(city.toLowerCase());
+
+    const matchesService =
+      !selectedService ||
+      provider.services.some((s) =>
+        s.name.toLowerCase().includes(selectedService.toLowerCase())
+      );
+
+    const minPriceCents =
+      provider.services.length > 0
+        ? Math.min(...provider.services.map((s) => s.pricePerHour ?? 0))
+        : 0;
+
+    const matchesPrice = minPriceCents / 100 <= priceRange[1];
+
+    const rating = provider.profile.averageRating ?? 0;
+    const matchesRating = rating >= minRating;
+
+    return (
+      matchesSearch &&
+      matchesState &&
+      matchesCity &&
+      matchesService &&
+      matchesPrice &&
+      matchesRating
+    );
   });
 
   return (
@@ -97,7 +165,7 @@ const SearchProviders: React.FC = () => {
         {/* Search Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Find Your Perfect Cleaner</h1>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <FaSearch className="absolute left-3 top-3 text-gray-400" />
@@ -109,7 +177,7 @@ const SearchProviders: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
+
             <input
               type="text"
               placeholder="City..."
@@ -124,17 +192,19 @@ const SearchProviders: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">All States</option>
-              {australianStates.map(s => (
-                <option key={s} value={s}>{s}</option>
+              {australianStates.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
-            
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <FaFilter className="mr-2" />
-              {showFilters ? 'Hide' : 'Show'} Filters
+              {showFilters ? "Hide" : "Show"} Filters
             </button>
           </div>
 
@@ -153,7 +223,9 @@ const SearchProviders: React.FC = () => {
                       min="0"
                       max="100"
                       value={priceRange[0]}
-                      onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                      onChange={(e) =>
+                        setPriceRange([Number(e.target.value), priceRange[1]])
+                      }
                       className="w-full"
                     />
                     <input
@@ -161,7 +233,9 @@ const SearchProviders: React.FC = () => {
                       min="0"
                       max="100"
                       value={priceRange[1]}
-                      onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                      onChange={(e) =>
+                        setPriceRange([priceRange[0], Number(e.target.value)])
+                      }
                       className="w-full"
                     />
                   </div>
@@ -173,17 +247,18 @@ const SearchProviders: React.FC = () => {
                     Minimum Rating
                   </label>
                   <div className="flex gap-2">
-                    {[0, 3, 4, 4.5].map(rating => (
+                    {[0, 3, 4, 4.5].map((rating) => (
                       <button
                         key={rating}
                         onClick={() => setMinRating(rating)}
                         className={`px-4 py-2 rounded-lg border ${
                           minRating === rating
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-blue-500"
                         }`}
                       >
-                        {rating === 0 ? 'Any' : `${rating}+`} <FaStar className="inline text-yellow-400" />
+                        {rating === 0 ? "Any" : `${rating}+`}{" "}
+                        <FaStar className="inline text-yellow-400" />
                       </button>
                     ))}
                   </div>
@@ -195,14 +270,18 @@ const SearchProviders: React.FC = () => {
                     Service Type
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {serviceTypes.map(service => (
+                    {serviceTypes.map((service) => (
                       <button
                         key={service}
-                        onClick={() => setSelectedService(selectedService === service ? '' : service)}
+                        onClick={() =>
+                          setSelectedService(
+                            selectedService === service ? "" : service
+                          )
+                        }
                         className={`px-4 py-2 rounded-full border ${
                           selectedService === service
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-blue-500"
                         }`}
                       >
                         {service}
@@ -237,16 +316,18 @@ const SearchProviders: React.FC = () => {
 
             {/* Provider Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProviders.map(provider => {
-                const minPrice = provider.services.length > 0 
-                  ? Math.min(...provider.services.map(s => s.pricePerHour))
-                  : 0;
+              {filteredProviders.map((provider) => {
+                const minPriceCents =
+                  provider.services.length > 0
+                    ? Math.min(...provider.services.map((s) => s.pricePerHour ?? 0))
+                    : 0;
+                const minPriceDollars = (minPriceCents / 100).toFixed(2);
 
                 return (
                   <Card key={provider.id} onClick={() => navigate(`/provider/${provider.id}`)}>
                     <div className="flex items-start space-x-4 cursor-pointer">
                       <img
-                        src={provider.profileImage || '/api/placeholder/100/100'}
+                        src={provider.profileImage || "/api/placeholder/100/100"}
                         alt={provider.name}
                         className="w-16 h-16 rounded-full object-cover"
                       />
@@ -257,32 +338,36 @@ const SearchProviders: React.FC = () => {
                             ✓ Verified
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center mt-1 text-sm text-gray-600">
                           <FaMapMarkerAlt className="mr-1" />
-                          {provider.profile.city}, {provider.profile.state}
+                          {provider.profile.city || "—"}, {provider.profile.state || "—"}
                         </div>
-                        
+
                         <div className="flex items-center mt-2">
                           <FaStar className="text-yellow-400 mr-1" />
-                          <span className="font-semibold">{provider.profile.averageRating?.toFixed(1) || 'New'}</span>
+                          <span className="font-semibold">
+                            {provider.profile.averageRating?.toFixed(1) || "New"}
+                          </span>
                           {provider.profile.totalReviews && provider.profile.totalReviews > 0 && (
-                            <span className="text-gray-500 ml-1">({provider.profile.totalReviews} reviews)</span>
+                            <span className="text-gray-500 ml-1">
+                              ({provider.profile.totalReviews} reviews)
+                            </span>
                           )}
                         </div>
-                        
-                        {minPrice > 0 && (
+
+                        {minPriceCents > 0 && (
                           <div className="flex items-center mt-2 text-lg font-bold text-blue-600">
                             From <FaDollarSign className="ml-1" />
-                            {minPrice}/hour
+                            {minPriceDollars}/hour
                           </div>
                         )}
-                        
+
                         <div className="mt-3">
                           <div className="flex flex-wrap gap-1">
-                            {provider.services.slice(0, 2).map(service => (
+                            {provider.services.slice(0, 2).map((service, i) => (
                               <span
-                                key={service.id}
+                                key={service.id ?? i}
                                 className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
                               >
                                 {service.name}
@@ -295,13 +380,13 @@ const SearchProviders: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        
+
                         {provider.profile.totalBookings && provider.profile.totalBookings > 0 && (
                           <div className="mt-3 text-sm text-green-600 font-medium">
                             {provider.profile.totalBookings} bookings completed
                           </div>
                         )}
-                        
+
                         <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
                           View Profile & Book
                         </button>
@@ -326,4 +411,3 @@ const SearchProviders: React.FC = () => {
 };
 
 export default SearchProviders;
-
