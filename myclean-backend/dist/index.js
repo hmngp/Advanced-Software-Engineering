@@ -13,6 +13,7 @@ const providers_1 = __importDefault(require("./providers"));
 const bookings_1 = __importDefault(require("./bookings"));
 const reviews_1 = __importDefault(require("./reviews"));
 const middleware_1 = require("./middleware");
+const servicesRoute_1 = __importDefault(require("./servicesRoute"));
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
 // CORS configuration - accept multiple origins
@@ -21,6 +22,7 @@ const allowedOrigins = [
     "https://myclean-project.vercel.app",
     "https://advanced-software-engineering-orpin.vercel.app",
 ];
+app.use("/api/services", servicesRoute_1.default);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or Postman)

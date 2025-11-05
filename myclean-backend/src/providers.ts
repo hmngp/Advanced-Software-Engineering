@@ -95,7 +95,7 @@ router.post("/me/profile", authenticateToken, async (req: Request, res: Response
         bio,
         yearsExperience,
         hasInsurance: !!hasInsurance,
-        insuranceProvider,
+       
         hasVehicle: !!hasVehicle,
         hasEquipment: !!hasEquipment,
         certifications,
@@ -111,7 +111,7 @@ router.post("/me/profile", authenticateToken, async (req: Request, res: Response
         bio,
         yearsExperience,
         hasInsurance: !!hasInsurance,
-        insuranceProvider,
+        
         hasVehicle: !!hasVehicle,
         hasEquipment: !!hasEquipment,
         certifications,
