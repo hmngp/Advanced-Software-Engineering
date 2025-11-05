@@ -3,32 +3,32 @@
 import { get } from "./api";
 
 export type ProviderService = {
-  id: number;
+  id?: number;
   serviceName: string;
   description?: string;
-  pricePerHour: number;  // cents
+  pricePerHour?: number;  // cents
   durationMin: number;
   isActive?: boolean;
 };
 
 export interface ProviderProfile {
   id: number;
-  bio?: string;
-  yearsExperience?: string;
+  bio?: string | null;
+  yearsExperience?: string | null;
   isVerified: boolean;
   isActive: boolean;
   hasInsurance?: boolean;
   hasVehicle?: boolean;
   hasEquipment?: boolean;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  averageRating?: number;
-  totalReviews?: number;
-  totalBookings?: number;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  averageRating?: number | null;
+  totalReviews?: number | null;
+  totalBookings?: number | null;
   services: ProviderService[];
-  user: {
+  user?: {
     id: number;
     name: string;
     profileImage: string | null;

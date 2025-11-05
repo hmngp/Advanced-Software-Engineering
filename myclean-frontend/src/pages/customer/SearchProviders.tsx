@@ -61,7 +61,7 @@ const SearchProviders: React.FC = () => {
         const data = await fetchProviders(); // GET /api/providers
        const mapped: ProviderUI[] = data.map((p: ProviderProfile) => ({
         id: p.id,
-  name: p.user?.name ?? "Cleaner",
+  name: p.user?.name ?? "New Provider",
   email: undefined,
   phone: undefined,
   profileImage: p.user?.profileImage ?? null,
@@ -334,9 +334,11 @@ const SearchProviders: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                            ✓ Verified
-                          </span>
+                          {provider.isVerified && (
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                              ✓ Verified
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center mt-1 text-sm text-gray-600">
@@ -356,12 +358,16 @@ const SearchProviders: React.FC = () => {
                           )}
                         </div>
 
-                        {minPriceCents > 0 && (
-                          <div className="flex items-center mt-2 text-lg font-bold text-blue-600">
-                            From <FaDollarSign className="ml-1" />
-                            {minPriceDollars}/hour
-                          </div>
-                        )}
+                        <div className="flex items-center mt-2 text-lg font-bold text-blue-600">
+                          {minPriceCents > 0 ? (
+                            <>
+                              From <FaDollarSign className="ml-1" />
+                              {minPriceDollars}/hour
+                            </>
+                          ) : (
+                            <span className="text-gray-500">—</span>
+                          )}
+                        </div>
 
                         <div className="mt-3">
                           <div className="flex flex-wrap gap-1">
