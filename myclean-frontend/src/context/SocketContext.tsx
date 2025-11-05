@@ -64,7 +64,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // User status events
     newSocket.on('user_status', (data: { userId: number; status: string }) => {
       if (data.status === 'online') {
-        setOnlineUsers((prev) => [...new Set([...prev, data.userId])]);
+        setOnlineUsers((prev) => {
+          if (prev.includes(data.userId)) return prev;
+          return [...prev, data.userId];
+        });
       } else {
         setOnlineUsers((prev) => prev.filter((id) => id !== data.userId));
       }

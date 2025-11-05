@@ -31,6 +31,7 @@ interface Booking {
   provider: {
     id: number;
     name: string;
+    profileImage?: string | null;
   };
   service: {
     name: string;
