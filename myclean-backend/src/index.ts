@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { createServer } from "http";
 import cors from "cors";
 import helmet from "helmet";
 import { prisma } from "./prisma"; 
@@ -8,8 +9,15 @@ import providersRouter from "./providers";
 import bookingsRouter from "./bookings";
 import reviewsRouter from "./reviews";
 import { authenticateToken, AuthRequest } from "./middleware";
+import { initializeSocket } from "./socket";
 
 const app = express();
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+const io = initializeSocket(httpServer);
+console.log("🔌 Socket.IO initialized");
+
 app.use(helmet());
 
 // CORS configuration - accept multiple origins
@@ -142,8 +150,9 @@ app.post("/api/messages", async (req, res) => {
 });
 
 const port = Number(process.env.PORT || 4000);
-app.listen(port, '0.0.0.0', () => {
+httpServer.listen(port, '0.0.0.0', () => {
   console.log(`🚀 MyClean Backend API running on port ${port}`);
+  console.log(`🔌 WebSocket server running on same port`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✅ Health check: http://localhost:${port}/api/health`);
 });

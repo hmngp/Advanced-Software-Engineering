@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -20,7 +21,7 @@ import ProviderDashboard from './pages/provider/Dashboard';
 import ProviderLandingPage from './pages/provider/ProviderLandingPage';
 import ProviderProfileSetup from './pages/provider/ProviderProfileSetup';
 import AvailabilityCalendar from './pages/provider/AvailabilityCalendar';
-import Messages from './pages/provider/Messages';
+import MessagesRealtime from './pages/provider/MessagesRealtime';
 import PaymentTracking from './pages/provider/PaymentTracking';
 
 // Admin Pages
@@ -32,10 +33,11 @@ import Verification from './pages/Verification';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <Routes>
+      <SocketProvider>
+        <Router>
+          <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -112,7 +114,7 @@ function App() {
               path="/provider/messages"
               element={
                 <ProtectedRoute allowedRoles={['PROVIDER']}>
-                  <Messages />
+                  <MessagesRealtime />
                 </ProtectedRoute>
               }
             />
@@ -160,6 +162,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }
