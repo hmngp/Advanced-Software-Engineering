@@ -163,7 +163,7 @@ const ProviderProfileSetup: React.FC = () => {
 
       if (response.data.success) {
         // Show success message
-        alert('Profile created successfully! You can now start accepting bookings.');
+        alert('🎉 Profile created successfully!\n\n✅ You are now visible to customers searching for cleaning services\n✅ You can start accepting bookings immediately\n✅ Customers in your area can find and book you');
         navigate('/provider/dashboard');
       } else {
         setError('Failed to create profile. Please try again.');

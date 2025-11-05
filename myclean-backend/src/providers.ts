@@ -257,6 +257,8 @@ router.post("/profile", async (req, res) => {
         hasEquipment: validatedData.professional.hasEquipment,
         certifications: validatedData.professional.certifications || null,
         profileComplete: true,
+        isActive: true,  // Provider is active immediately
+        isVerified: true,  // Auto-verify for demo (in production, admin would verify)
       },
       update: {
         bio: validatedData.basicInfo.bio,
@@ -271,6 +273,7 @@ router.post("/profile", async (req, res) => {
         hasEquipment: validatedData.professional.hasEquipment,
         certifications: validatedData.professional.certifications || null,
         profileComplete: true,
+        isActive: true,  // Ensure provider stays active on update
         updatedAt: new Date(),
       },
     });
