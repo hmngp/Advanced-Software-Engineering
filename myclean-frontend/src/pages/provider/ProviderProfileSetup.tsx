@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaUser, FaBriefcase, FaDollarSign, FaCalendar, FaCamera, FaClock, FaMapMarkerAlt, FaCheckCircle } from 'react-icons/fa';
 import Card from '../../components/Card';
+import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 interface TimeSlot {
   day: string;
@@ -18,8 +22,11 @@ interface Service {
 
 const ProviderProfileSetup: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Step 1: Basic Information
   const [fullName, setFullName] = useState('');
@@ -106,20 +113,69 @@ const ProviderProfileSetup: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const profileData = {
-      basicInfo: { fullName, phone, address, city, state, zipCode, bio },
-      professional: { yearsExperience, hasInsurance, insuranceProvider, hasVehicle, hasEquipment, certifications },
-      services: services.filter(s => s.selected),
-      availability,
-      settings: { maxBookingsPerDay, advanceBookingDays },
-      files: { profilePhoto, workPhotos, idDocument, insuranceDocument }
-    };
-    console.log('Profile Data:', profileData);
-    // TODO: Submit to backend API
-    alert('Profile created successfully! Redirecting to dashboard...');
-    navigate('/provider/dashboard');
+    
+    if (!user) {
+      setError('User not logged in');
+      return;
+    }
+
+    // Validate that at least one service is selected
+    const selectedServices = services.filter(s => s.selected && s.rate);
+    if (selectedServices.length === 0) {
+      setError('Please select at least one service and set its rate');
+      return;
+    }
+
+    // Validate that at least one day is available
+    const enabledDays = availability.filter(a => a.enabled);
+    if (enabledDays.length === 0) {
+      setError('Please set your availability for at least one day');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const profileData = {
+        userId: user.id,
+        basicInfo: { fullName, phone, address, city, state, zipCode, bio },
+        professional: { 
+          yearsExperience, 
+          hasInsurance, 
+          insuranceProvider: hasInsurance ? insuranceProvider : undefined,
+          hasVehicle, 
+          hasEquipment, 
+          certifications: certifications || undefined
+        },
+        services,
+        availability,
+        settings: { maxBookingsPerDay, advanceBookingDays },
+      };
+
+      const response = await axios.post(`${API_URL}/api/providers/profile`, profileData);
+
+      if (response.data.success) {
+        // Show success message
+        alert('Profile created successfully! You can now start accepting bookings.');
+        navigate('/provider/dashboard');
+      } else {
+        setError('Failed to create profile. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Profile creation error:', err);
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err.response?.data?.details) {
+        setError('Please fill in all required fields correctly');
+      } else {
+        setError('Failed to create profile. Please check your connection and try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -626,6 +682,13 @@ const ProviderProfileSetup: React.FC = () => {
           </div>
         </div>
 
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800 font-medium">{error}</p>
+          </div>
+        )}
+
         {/* Form Card */}
         <Card>
           <form onSubmit={currentStep === totalSteps ? handleSubmit : (e) => e.preventDefault()}>
@@ -654,10 +717,20 @@ const ProviderProfileSetup: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center font-semibold"
+                  disabled={loading}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FaCheckCircle className="mr-2" />
-                  Complete Profile
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Saving Profile...
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle className="mr-2" />
+                      Complete Profile
+                    </>
+                  )}
                 </button>
               )}
             </div>

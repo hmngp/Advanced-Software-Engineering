@@ -58,6 +58,17 @@ const ProviderDashboard: React.FC = () => {
     try {
       setLoading(true);
       
+      // Fetch provider profile
+      let providerProfile = null;
+      try {
+        const profileResponse = await axios.get(`/api/providers/profile/${user.id}`);
+        providerProfile = profileResponse.data.profile;
+        setProfileComplete(providerProfile?.profileComplete || false);
+      } catch (error) {
+        // Profile doesn't exist yet
+        setProfileComplete(false);
+      }
+
       // Fetch bookings
       const bookingsResponse = await axios.get(`/api/bookings/user/${user.id}?role=PROVIDER`);
       const allBookings = bookingsResponse.data.bookings || [];
@@ -78,12 +89,10 @@ const ProviderDashboard: React.FC = () => {
         weeklyEarnings: totalEarnings * 0.2, // Mock weekly calculation
         monthlyEarnings: totalEarnings,
         completedJobs: completed.length,
-        averageRating: 4.8, // TODO: Get from provider profile
-        responseRate: 98, // TODO: Calculate
+        averageRating: providerProfile?.averageRating || 0,
+        responseRate: 98, // TODO: Calculate from response times
         upcomingJobs: accepted.length,
       });
-
-      setProfileComplete(true); // TODO: Get from provider profile
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

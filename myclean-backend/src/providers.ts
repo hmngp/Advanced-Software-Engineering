@@ -190,5 +190,197 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// Create or update provider profile
+router.post("/profile", async (req, res) => {
+  try {
+    const profileSchema = z.object({
+      userId: z.number(),
+      basicInfo: z.object({
+        fullName: z.string().min(1),
+        phone: z.string().min(1),
+        address: z.string().min(1),
+        city: z.string().min(1),
+        state: z.string().min(1),
+        zipCode: z.string().min(1),
+        bio: z.string().min(1),
+      }),
+      professional: z.object({
+        yearsExperience: z.string().min(1),
+        hasInsurance: z.boolean(),
+        insuranceProvider: z.string().optional(),
+        hasVehicle: z.boolean(),
+        hasEquipment: z.boolean(),
+        certifications: z.string().optional(),
+      }),
+      services: z.array(z.object({
+        name: z.string(),
+        rate: z.string(),
+        selected: z.boolean(),
+      })),
+      availability: z.array(z.object({
+        day: z.string(),
+        enabled: z.boolean(),
+        startTime: z.string(),
+        endTime: z.string(),
+      })),
+      settings: z.object({
+        maxBookingsPerDay: z.string(),
+        advanceBookingDays: z.string(),
+      }),
+    });
+
+    const validatedData = profileSchema.parse(req.body);
+
+    // Update user's name and phone
+    await prisma.user.update({
+      where: { id: validatedData.userId },
+      data: {
+        name: validatedData.basicInfo.fullName,
+        phone: validatedData.basicInfo.phone,
+      },
+    });
+
+    // Create or update provider profile
+    const profile = await prisma.providerProfile.upsert({
+      where: { userId: validatedData.userId },
+      create: {
+        userId: validatedData.userId,
+        bio: validatedData.basicInfo.bio,
+        address: validatedData.basicInfo.address,
+        city: validatedData.basicInfo.city,
+        state: validatedData.basicInfo.state,
+        zipCode: validatedData.basicInfo.zipCode,
+        yearsExperience: validatedData.professional.yearsExperience,
+        hasInsurance: validatedData.professional.hasInsurance,
+        insuranceProvider: validatedData.professional.insuranceProvider || null,
+        hasVehicle: validatedData.professional.hasVehicle,
+        hasEquipment: validatedData.professional.hasEquipment,
+        certifications: validatedData.professional.certifications || null,
+        profileComplete: true,
+      },
+      update: {
+        bio: validatedData.basicInfo.bio,
+        address: validatedData.basicInfo.address,
+        city: validatedData.basicInfo.city,
+        state: validatedData.basicInfo.state,
+        zipCode: validatedData.basicInfo.zipCode,
+        yearsExperience: validatedData.professional.yearsExperience,
+        hasInsurance: validatedData.professional.hasInsurance,
+        insuranceProvider: validatedData.professional.insuranceProvider || null,
+        hasVehicle: validatedData.professional.hasVehicle,
+        hasEquipment: validatedData.professional.hasEquipment,
+        certifications: validatedData.professional.certifications || null,
+        profileComplete: true,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Delete existing services and availability to replace with new ones
+    await prisma.providerService.deleteMany({
+      where: { providerId: profile.id },
+    });
+
+    await prisma.providerAvailability.deleteMany({
+      where: { providerId: profile.id },
+    });
+
+    // Create services
+    const selectedServices = validatedData.services.filter(s => s.selected && s.rate);
+    if (selectedServices.length > 0) {
+      await prisma.providerService.createMany({
+        data: selectedServices.map(service => ({
+          providerId: profile.id,
+          serviceName: service.name,
+          pricePerHour: Math.round(parseFloat(service.rate) * 100), // Convert to cents
+          durationMin: 60, // Default 1 hour minimum
+          isActive: true,
+        })),
+      });
+    }
+
+    // Create availability
+    const enabledDays = validatedData.availability.filter(a => a.enabled);
+    if (enabledDays.length > 0) {
+      await prisma.providerAvailability.createMany({
+        data: enabledDays.map(avail => ({
+          providerId: profile.id,
+          dayOfWeek: avail.day.toUpperCase(),
+          startTime: avail.startTime,
+          endTime: avail.endTime,
+          isAvailable: true,
+        })),
+      });
+    }
+
+    // Fetch complete profile with relations
+    const completeProfile = await prisma.providerProfile.findUnique({
+      where: { id: profile.id },
+      include: {
+        services: true,
+        availability: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Profile created successfully!",
+      profile: completeProfile,
+    });
+  } catch (error) {
+    console.error("Profile creation error:", error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ 
+        error: "Invalid data", 
+        details: error.errors 
+      });
+    }
+    res.status(500).json({ error: "Failed to create provider profile" });
+  }
+});
+
+// Get provider's own profile
+router.get("/profile/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const profile = await prisma.providerProfile.findUnique({
+      where: { userId: parseInt(userId) },
+      include: {
+        services: true,
+        availability: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            profileImage: true,
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    res.json({
+      success: true,
+      profile,
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Failed to get profile" });
+  }
+});
+
 export default router;
 
