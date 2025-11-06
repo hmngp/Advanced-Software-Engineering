@@ -25,7 +25,9 @@ interface AuthContextType {
 }
 
 // ---- axios instance with baseURL
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+// Normalize BASE URL: remove trailing slash to avoid double slashes
+const API_BASE_RAW = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+const API_BASE = API_BASE_RAW.replace(/\/+$/, ''); // Remove trailing slashes
 const api = axiosBase.create({
   baseURL: API_BASE,
   // If you use cookies/sessions, set withCredentials: true.
