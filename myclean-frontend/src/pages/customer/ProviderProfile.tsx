@@ -28,6 +28,7 @@ type ReviewUI = {
 
 type ProviderUI = {
   id: number;
+  userId: number;
   name: string;
   profileImage: string | null;
   profile: {
@@ -89,6 +90,7 @@ const ProviderProfile: React.FC = () => {
         const dto: ProviderDTO = await fetchProvider(Number(id));
         const mapped: ProviderUI = {
           id: dto.id,
+          userId: dto.user?.id ?? 0,
           name: dto.user?.name ?? 'Cleaner',
           profileImage: dto.user?.profileImage ?? null,
           profile: {
@@ -117,6 +119,10 @@ const ProviderProfile: React.FC = () => {
           availability: [], // backend doesn't include it in this route yet
           reviews: [],      // backend doesn't include it in this route yet
         };
+
+        if (!dto.user?.id) {
+          throw new Error('Provider user account is missing an id');
+        }
 
         setProvider(mapped);
         setError('');
@@ -173,9 +179,14 @@ const ProviderProfile: React.FC = () => {
       setBookingMessage(null);
       const totalPrice = calculateTotalPriceCents(); // cents
 
+      if (!provider.userId) {
+        setBookingMessage({ type: 'error', text: 'Provider account information is incomplete. Please try another provider.' });
+        return;
+      }
+
       const bookingData = {
         customerId: user.id,
-        providerId: provider.id,
+        providerId: provider.userId,
         serviceId: selectedService.id,
         bookingDate: selectedDate, // your backend accepts string/Date; keep consistent with your bookings route
         startTime: selectedTime,
