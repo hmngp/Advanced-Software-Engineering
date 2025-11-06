@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "remove-test-provider": "tsx scripts/remove-test-provider.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",

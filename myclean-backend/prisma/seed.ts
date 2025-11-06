@@ -18,6 +18,10 @@ async function main() {
   const password1 = await bcrypt.hash('customer123', 10);
   const password2 = await bcrypt.hash('provider123', 10);
 
+  // Test Customer and Test Provider removed - only seed real data
+  // Uncomment below if you need test users for development:
+  
+  /*
   const customer = await prisma.user.create({
     data: {
       email: 'customer@example.com',
@@ -45,7 +49,6 @@ async function main() {
       isActive: true,
       averageRating: 4.5,
       totalReviews: 1
-      // visibility: 'ALL' // if you keep the enum
     },
   });
 
@@ -57,6 +60,7 @@ async function main() {
       durationMin: 120,
     },
   });
+  */
 
   console.log('✅ Seed complete!');
 }
