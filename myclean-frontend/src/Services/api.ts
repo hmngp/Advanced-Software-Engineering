@@ -4,6 +4,10 @@
 // For local dev, it defaults to localhost
 const BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
+// Debug logging
+console.log("🌐 API Base URL:", BASE);
+console.log("🌐 NODE_ENV:", process.env.NODE_ENV);
+
 // Log a warning in production if API URL is not configured
 if (process.env.NODE_ENV === 'production' && !process.env.REACT_APP_API_URL) {
   console.error('⚠️ REACT_APP_API_URL is not set! API calls will fail. Please set it in Vercel environment variables.');

@@ -19,15 +19,32 @@ const allowedOrigins = [
   "https://myclean-project.vercel.app",
   "https://advanced-software-engineering-orpin.vercel.app",
 ];
+
+// Allow any Vercel preview/production domain
+const isVercelDomain = (origin: string | undefined): boolean => {
+  if (!origin) return false;
+  return origin.includes(".vercel.app") || allowedOrigins.includes(origin);
+};
+
 app.use("/api/services", servicesRoute);
 
 app.use(
   cors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
+      if (!origin) {
+        console.log("CORS: Allowing request with no origin");
+        return callback(null, true);
+      }
+      
+      // Check if it's localhost or allowed origin
+      if (allowedOrigins.includes(origin) || isVercelDomain(origin)) {
+        console.log(`CORS: Allowing origin: ${origin}`);
+        return callback(null, true);
+      }
+      
+      console.log(`CORS: Blocked origin: ${origin}`);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
   })

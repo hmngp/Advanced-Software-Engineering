@@ -58,7 +58,10 @@ const SearchProviders: React.FC = () => {
     async function load() {
       try {
         setLoading(true);
+        setError(""); // Clear previous errors
+        console.log("🔍 Fetching providers...");
         const data = await fetchProviders(); // GET /api/providers
+        console.log("✅ Providers fetched:", data.length, "providers");
        const mapped: ProviderUI[] = data.map((p: ProviderProfile) => ({
         id: p.id,
   name: p.user?.name ?? "New Provider",
@@ -90,8 +93,10 @@ const SearchProviders: React.FC = () => {
         setProviders(mapped);
         setError("");
       } catch (e) {
-        console.error(e);
-        setError("Failed to load providers. Please try again.");
+        console.error("❌ Error loading providers:", e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.error("Error details:", errorMessage);
+        setError(`Failed to load providers: ${errorMessage}. Please check your backend URL configuration.`);
       } finally {
         setLoading(false);
       }
