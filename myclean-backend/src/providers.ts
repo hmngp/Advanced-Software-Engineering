@@ -89,7 +89,21 @@ router.post("/me/profile", authenticateToken, async (req: Request, res: Response
       state,
       zipCode,
       isActive = true,
+      phone, // Optional: update user's phone
+      name, // Optional: update user's name
     } = req.body ?? {};
+
+    // Update user's phone and name if provided
+    if (phone || name) {
+      const userUpdate: any = {};
+      if (phone) userUpdate.phone = phone;
+      if (name) userUpdate.name = name;
+      
+      await prisma.user.update({
+        where: { id: userId },
+        data: userUpdate,
+      });
+    }
 
     const upserted = await prisma.providerProfile.upsert({
       where: { userId },
@@ -97,7 +111,7 @@ router.post("/me/profile", authenticateToken, async (req: Request, res: Response
         bio,
         yearsExperience,
         hasInsurance: !!hasInsurance,
-       
+        insuranceProvider: insuranceProvider || null,
         hasVehicle: !!hasVehicle,
         hasEquipment: !!hasEquipment,
         certifications,
@@ -113,7 +127,7 @@ router.post("/me/profile", authenticateToken, async (req: Request, res: Response
         bio,
         yearsExperience,
         hasInsurance: !!hasInsurance,
-        
+        insuranceProvider: insuranceProvider || null,
         hasVehicle: !!hasVehicle,
         hasEquipment: !!hasEquipment,
         certifications,

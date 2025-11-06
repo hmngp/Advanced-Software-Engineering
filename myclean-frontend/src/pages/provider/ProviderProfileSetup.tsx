@@ -140,13 +140,13 @@ const ProviderProfileSetup: React.FC = () => {
         return;
       }
 
-      // 1) Save core provider profile
+      // 1) Save core provider profile (including phone and name updates)
       console.log("💾 Saving provider profile...");
       await axios.post(`${API_BASE}/api/providers/me/profile`, {
         bio,
         yearsExperience,
         hasInsurance,
-        insuranceProvider,
+        insuranceProvider: hasInsurance ? insuranceProvider : null,
         hasVehicle,
         hasEquipment,
         certifications,
@@ -154,6 +154,8 @@ const ProviderProfileSetup: React.FC = () => {
         city,
         state,
         zipCode,
+        phone, // Save phone number to User table
+        name: fullName, // Update user's name if changed
         isActive: true,
       }, {
         headers: {
