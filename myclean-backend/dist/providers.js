@@ -18,8 +18,9 @@ router.get("/", async (_req, res) => {
         });
         res.json({ success: true, providers });
     }
-    catch {
-        res.status(500).json({ error: "Failed to list providers" });
+    catch (error) {
+        console.error("Error fetching providers:", error);
+        res.status(500).json({ error: "Failed to list providers", details: error instanceof Error ? error.message : String(error) });
     }
 });
 /* ---------- PUBLIC: provider by id (you already have this) ---------- */
@@ -37,8 +38,9 @@ router.get("/:id", async (req, res) => {
             return res.status(404).json({ error: "Profile not found" });
         res.json({ success: true, profile });
     }
-    catch {
-        res.status(500).json({ error: "Failed to fetch profile" });
+    catch (error) {
+        console.error("Error fetching provider by id:", error);
+        res.status(500).json({ error: "Failed to fetch profile", details: error instanceof Error ? error.message : String(error) });
     }
 });
 /* ---------- PRIVATE: get my provider profile (for edit screens) ---------- */
@@ -72,13 +74,28 @@ router.post("/me/profile", middleware_1.authenticateToken, async (req, res) => {
         const userId = req.user?.sub;
         if (!userId)
             return res.status(401).json({ error: "Unauthorized" });
-        const { bio, yearsExperience, hasInsurance, insuranceProvider, hasVehicle, hasEquipment, certifications, address, city, state, zipCode, isActive = true, } = req.body ?? {};
+        const { bio, yearsExperience, hasInsurance, insuranceProvider, hasVehicle, hasEquipment, certifications, address, city, state, zipCode, isActive = true, phone, // Optional: update user's phone
+        name, // Optional: update user's name
+         } = req.body ?? {};
+        // Update user's phone and name if provided
+        if (phone || name) {
+            const userUpdate = {};
+            if (phone)
+                userUpdate.phone = phone;
+            if (name)
+                userUpdate.name = name;
+            await prisma_1.prisma.user.update({
+                where: { id: userId },
+                data: userUpdate,
+            });
+        }
         const upserted = await prisma_1.prisma.providerProfile.upsert({
             where: { userId },
             update: {
                 bio,
                 yearsExperience,
                 hasInsurance: !!hasInsurance,
+                insuranceProvider: insuranceProvider || null,
                 hasVehicle: !!hasVehicle,
                 hasEquipment: !!hasEquipment,
                 certifications,
@@ -94,6 +111,7 @@ router.post("/me/profile", middleware_1.authenticateToken, async (req, res) => {
                 bio,
                 yearsExperience,
                 hasInsurance: !!hasInsurance,
+                insuranceProvider: insuranceProvider || null,
                 hasVehicle: !!hasVehicle,
                 hasEquipment: !!hasEquipment,
                 certifications,
