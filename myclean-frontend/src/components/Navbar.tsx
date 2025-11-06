@@ -166,9 +166,15 @@ const Navbar: React.FC = () => {
                     )}
                   </div>
                   
-                  <Link to="/profile" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                    <FaUser className="mr-2" /> {user.name}
-                  </Link>
+                  {user.role === 'PROVIDER' ? (
+                    <Link to="/provider/profile-setup" className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                      <FaUser className="mr-2" /> {user.name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-700 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                      <FaUser className="mr-2" /> {user.name}
+                    </span>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 flex items-center"
@@ -233,9 +239,11 @@ const Navbar: React.FC = () => {
                     </Link>
                   </>
                 )}
-                <Link to="/profile" className="block text-gray-700 hover:bg-blue-50 px-3 py-2 rounded-md text-base font-medium">
-                  Profile
-                </Link>
+                {user.role === 'PROVIDER' && (
+                  <Link to="/provider/profile-setup" className="block text-gray-700 hover:bg-blue-50 px-3 py-2 rounded-md text-base font-medium">
+                    Edit Profile
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="block w-full text-left text-red-600 hover:bg-red-50 px-3 py-2 rounded-md text-base font-medium"

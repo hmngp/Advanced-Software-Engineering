@@ -159,6 +159,15 @@ const ProviderProfileSetup: React.FC = () => {
         settings: { maxBookingsPerDay, advanceBookingDays },
       };
 
+      console.log('=== PROFILE DATA BEING SENT ===');
+      console.log('userId:', user.id);
+      console.log('basicInfo:', profileData.basicInfo);
+      console.log('professional:', profileData.professional);
+      console.log('services:', profileData.services);
+      console.log('availability:', profileData.availability);
+      console.log('settings:', profileData.settings);
+      console.log('=== END PROFILE DATA ===');
+
       const response = await axios.post(`${API_URL}/api/providers/profile`, profileData);
 
       if (response.data.success) {
@@ -171,10 +180,9 @@ const ProviderProfileSetup: React.FC = () => {
     } catch (err: any) {
       console.error('Profile creation error:', err);
       console.error('Error response:', err.response?.data);
+      console.error('Full error object:', JSON.stringify(err.response?.data, null, 2));
       
-      if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else if (err.response?.data?.details) {
+      if (err.response?.data?.details) {
         // Zod validation errors - show detailed message
         const validationErrors = err.response.data.details;
         console.error('Validation errors:', validationErrors);
@@ -182,6 +190,9 @@ const ProviderProfileSetup: React.FC = () => {
           `${e.path.join('.')}: ${e.message}`
         ).join('\n');
         setError(`Validation errors:\n${errorMessages}`);
+      } else if (err.response?.data?.error) {
+        // Show backend error message
+        setError(`Error: ${err.response.data.error}`);
       } else {
         setError('Failed to create profile. Please check your connection and try again.');
       }

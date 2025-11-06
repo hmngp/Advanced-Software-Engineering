@@ -193,6 +193,10 @@ router.get("/:id", async (req, res) => {
 // Create or update provider profile
 router.post("/profile", async (req, res) => {
   try {
+    console.log("=== RECEIVED PROFILE DATA ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+    console.log("=== END RECEIVED DATA ===");
+    
     const profileSchema = z.object({
       userId: z.number(),
       basicInfo: z.object({
@@ -340,6 +344,7 @@ router.post("/profile", async (req, res) => {
   } catch (error) {
     console.error("Profile creation error:", error);
     if (error instanceof z.ZodError) {
+      console.error("Zod validation errors:", JSON.stringify(error.errors, null, 2));
       return res.status(400).json({ 
         error: "Invalid data", 
         details: error.errors 
