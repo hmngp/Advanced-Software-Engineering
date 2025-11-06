@@ -34,7 +34,31 @@ async function removeTestProvider() {
 
     console.log(`📋 Found Test Provider: ${testProvider.name} (ID: ${testProvider.id})`);
 
-    // Delete related data first (due to foreign key constraints)
+    // Delete related data in correct order (respecting foreign key constraints)
+    
+    // Step 1: Get bookings first (needed for reviews)
+    console.log('🔍 Finding related bookings...');
+    const bookings = await prisma.booking.findMany({
+      where: { providerId: testProvider.id },
+      select: { id: true }
+    });
+    const bookingIds = bookings.map(b => b.id);
+    
+    // Step 2: Delete reviews first (they reference bookings)
+    if (bookingIds.length > 0) {
+      console.log('🗑️  Deleting reviews...');
+      await prisma.review.deleteMany({
+        where: { bookingId: { in: bookingIds } }
+      });
+    }
+
+    // Step 3: Delete bookings (they reference services, so must be deleted before services)
+    console.log('🗑️  Deleting related bookings...');
+    await prisma.booking.deleteMany({
+      where: { providerId: testProvider.id }
+    });
+
+    // Step 4: Now we can delete provider services (bookings are gone)
     if (testProvider.providerProfile) {
       const profile = testProvider.providerProfile;
       
@@ -51,25 +75,6 @@ async function removeTestProvider() {
       console.log('🗑️  Deleting provider profile...');
       await prisma.providerProfile.delete({
         where: { id: profile.id }
-      });
-    }
-
-    // Delete any bookings associated with this provider
-    console.log('🗑️  Deleting related bookings...');
-    await prisma.booking.deleteMany({
-      where: { providerId: testProvider.id }
-    });
-
-    // Delete reviews (via bookings)
-    console.log('🗑️  Deleting reviews...');
-    const bookings = await prisma.booking.findMany({
-      where: { providerId: testProvider.id },
-      select: { id: true }
-    });
-    const bookingIds = bookings.map(b => b.id);
-    if (bookingIds.length > 0) {
-      await prisma.review.deleteMany({
-        where: { bookingId: { in: bookingIds } }
       });
     }
 
