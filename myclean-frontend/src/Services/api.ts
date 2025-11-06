@@ -1,6 +1,13 @@
 // src/services/api.ts
 
+// In production, REACT_APP_API_URL must be set in Vercel environment variables
+// For local dev, it defaults to localhost
 const BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
+
+// Log a warning in production if API URL is not configured
+if (process.env.NODE_ENV === 'production' && !process.env.REACT_APP_API_URL) {
+  console.error('⚠️ REACT_APP_API_URL is not set! API calls will fail. Please set it in Vercel environment variables.');
+}
 
 export type Service = {
   id: number;
@@ -17,9 +24,21 @@ export type Service = {
 };
 
 export async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { credentials: "include" });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json() as Promise<T>;
+  try {
+    const res = await fetch(`${BASE}${path}`, { credentials: "include" });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'Unknown error');
+      console.error(`GET ${BASE}${path} failed:`, res.status, errorText);
+      throw new Error(`GET ${path} failed: ${res.status} - ${errorText}`);
+    }
+    return res.json() as Promise<T>;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error(`Network error: Cannot reach ${BASE}${path}. Is the backend running?`);
+      throw new Error(`Cannot connect to backend at ${BASE}. Please check your REACT_APP_API_URL configuration.`);
+    }
+    throw error;
+  }
 }
 
 export async function post<T>(path: string, body: any): Promise<T> {

@@ -17,8 +17,9 @@ router.get("/", async (_req: Request, res: Response) => {
       orderBy: { averageRating: "desc" },
     });
     res.json({ success: true, providers });
-  } catch {
-    res.status(500).json({ error: "Failed to list providers" });
+  } catch (error) {
+    console.error("Error fetching providers:", error);
+    res.status(500).json({ error: "Failed to list providers", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -35,8 +36,9 @@ router.get("/:id", async (req: Request, res: Response) => {
     });
     if (!profile) return res.status(404).json({ error: "Profile not found" });
     res.json({ success: true, profile });
-  } catch {
-    res.status(500).json({ error: "Failed to fetch profile" });
+  } catch (error) {
+    console.error("Error fetching provider by id:", error);
+    res.status(500).json({ error: "Failed to fetch profile", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
