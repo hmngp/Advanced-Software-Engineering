@@ -17,7 +17,8 @@ const Register: React.FC = () => {
   useEffect(() => {
     if (user && justRegistered) {
       if (user.role === 'PROVIDER') {
-        navigate('/provider/home');
+        // New providers must complete their profile first
+        navigate('/provider/profile-setup');
       } else if (user.role === 'CUSTOMER') {
         navigate('/search');
       } else if (user.role === 'ADMIN') {

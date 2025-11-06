@@ -159,7 +159,8 @@ const ProviderProfileSetup: React.FC = () => {
       await axios.post("/api/providers/me/services", { services: selected });
 
       alert("Profile created successfully! Redirecting to dashboard...");
-      navigate("/provider/dashboard");
+      // Refresh the page to ensure profileComplete is updated
+      window.location.href = "/provider/home";
     } catch (err) {
       console.error(err);
       alert("Failed to save profile. Please try again.");
