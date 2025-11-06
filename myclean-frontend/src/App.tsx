@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProviderRoute from './components/ProviderRoute';
+import { useProviderProfile } from './hooks/useProviderProfile';
 
 // Auth Pages
 import Login from './pages/Login';
@@ -79,51 +81,51 @@ function App() {
 
             {/* Provider Routes */}
             <Route
-              path="/provider/home"
+              path="/provider/profile-setup"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
-                  <ProviderLandingPage />
-                </ProtectedRoute>
+                <ProviderRoute allowIncomplete={true}>
+                  <ProviderProfileSetup />
+                </ProviderRoute>
               }
             />
             <Route
-              path="/provider/profile-setup"
+              path="/provider/home"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
-                  <ProviderProfileSetup />
-                </ProtectedRoute>
+                <ProviderRoute>
+                  <ProviderLandingPage />
+                </ProviderRoute>
               }
             />
             <Route
               path="/provider/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
+                <ProviderRoute>
                   <ProviderDashboard />
-                </ProtectedRoute>
+                </ProviderRoute>
               }
             />
             <Route
               path="/provider/calendar"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
+                <ProviderRoute>
                   <AvailabilityCalendar />
-                </ProtectedRoute>
+                </ProviderRoute>
               }
             />
             <Route
               path="/provider/messages"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
+                <ProviderRoute>
                   <MessagesRealtime />
-                </ProtectedRoute>
+                </ProviderRoute>
               }
             />
             <Route
               path="/provider/payments"
               element={
-                <ProtectedRoute allowedRoles={['PROVIDER']}>
+                <ProviderRoute>
                   <PaymentTracking />
-                </ProtectedRoute>
+                </ProviderRoute>
               }
             />
 
@@ -170,11 +172,28 @@ function App() {
 // Component to redirect to appropriate dashboard based on role
 const DashboardRedirect: React.FC = () => {
   const { user } = useAuth();
+  const { profileComplete, loading } = useProviderProfile();
 
   if (!user) return <Navigate to="/login" replace />;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   if (user.role === 'ADMIN') return <Navigate to="/admin" replace />;
-  if (user.role === 'PROVIDER') return <Navigate to="/provider/home" replace />;
+  
+  if (user.role === 'PROVIDER') {
+    // Redirect to profile setup if profile is incomplete
+    if (profileComplete === false) {
+      return <Navigate to="/provider/profile-setup" replace />;
+    }
+    return <Navigate to="/provider/home" replace />;
+  }
+  
   return <Navigate to="/search" replace />;
 };
 

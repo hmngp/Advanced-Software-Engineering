@@ -1,77 +1,91 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaUser, FaBriefcase, FaDollarSign, FaCalendar, FaCamera, FaClock, FaMapMarkerAlt, FaCheckCircle } from 'react-icons/fa';
-import Card from '../../components/Card';
-import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+// src/pages/provider/ProviderProfileSetup.tsx
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FaUser,
+  FaBriefcase,
+  FaDollarSign,
+  FaCalendar,
+  FaCamera,
+  FaClock,
+  FaMapMarkerAlt,
+  FaCheckCircle,
+  FaFilter,
+  FaTools,
+  FaShieldAlt,
+  FaCar,
+} from "react-icons/fa";
+import Card from "../../components/Card";
+import axios from "axios";
+import { useAuth } from "../../context/AuthContext";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+// Get API base URL
+const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/+$/, '') || 'http://localhost:4000';
 
-interface TimeSlot {
+type TimeSlot = {
   day: string;
   enabled: boolean;
   startTime: string;
   endTime: string;
-}
+};
 
-interface Service {
+type Service = {
   name: string;
-  rate: string;
+  rate: string; // dollars/hour in UI
   selected: boolean;
-}
+};
 
 const ProviderProfileSetup: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Step 1: Basic Information
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [zipCode, setZipCode] = useState('');
-  const [bio, setBio] = useState('');
+  const [fullName, setFullName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [bio, setBio] = useState("");
 
   // Step 2: Professional Details
-  const [yearsExperience, setYearsExperience] = useState('');
+  const [yearsExperience, setYearsExperience] = useState("");
   const [hasInsurance, setHasInsurance] = useState(false);
-  const [insuranceProvider, setInsuranceProvider] = useState('');
+  const [insuranceProvider, setInsuranceProvider] = useState("");
   const [hasVehicle, setHasVehicle] = useState(false);
   const [hasEquipment, setHasEquipment] = useState(false);
-  const [certifications, setCertifications] = useState('');
+  const [certifications, setCertifications] = useState("");
 
   // Step 3: Services & Pricing
   const [services, setServices] = useState<Service[]>([
-    { name: 'Regular Cleaning', rate: '', selected: false },
-    { name: 'Deep Cleaning', rate: '', selected: false },
-    { name: 'Move-in/Move-out Cleaning', rate: '', selected: false },
-    { name: 'Office Cleaning', rate: '', selected: false },
-    { name: 'Carpet Cleaning', rate: '', selected: false },
-    { name: 'Window Cleaning', rate: '', selected: false },
-    { name: 'Pressure Washing', rate: '', selected: false },
-    { name: 'Post-Construction Cleaning', rate: '', selected: false },
+    { name: "Regular Cleaning", rate: "", selected: false },
+    { name: "Deep Cleaning", rate: "", selected: false },
+    { name: "Move-in/Move-out Cleaning", rate: "", selected: false },
+    { name: "Office Cleaning", rate: "", selected: false },
+    { name: "Carpet Cleaning", rate: "", selected: false },
+    { name: "Window Cleaning", rate: "", selected: false },
+    { name: "Pressure Washing", rate: "", selected: false },
+    { name: "Post-Construction Cleaning", rate: "", selected: false },
   ]);
 
-  // Step 4: Availability
+  // Step 4: Availability (UI only for now)
   const [availability, setAvailability] = useState<TimeSlot[]>([
-    { day: 'Monday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Tuesday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Wednesday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Thursday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Friday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Saturday', enabled: false, startTime: '09:00', endTime: '17:00' },
-    { day: 'Sunday', enabled: false, startTime: '09:00', endTime: '17:00' },
+    { day: "Monday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Tuesday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Wednesday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Thursday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Friday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Saturday", enabled: false, startTime: "09:00", endTime: "17:00" },
+    { day: "Sunday", enabled: false, startTime: "09:00", endTime: "17:00" },
   ]);
+  const [maxBookingsPerDay, setMaxBookingsPerDay] = useState("3");
+  const [advanceBookingDays, setAdvanceBookingDays] = useState("30");
 
-  const [maxBookingsPerDay, setMaxBookingsPerDay] = useState('3');
-  const [advanceBookingDays, setAdvanceBookingDays] = useState('30');
-
-  // Step 5: Photos & Documents (not yet implemented in backend)
+  // Step 5: Photos & Documents (not sent in this version)
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [workPhotos, setWorkPhotos] = useState<File[]>([]);
   const [idDocument, setIdDocument] = useState<File | null>(null);
@@ -82,35 +96,45 @@ const ProviderProfileSetup: React.FC = () => {
   const filesCollected = { profilePhoto, workPhotos, idDocument, insuranceDocument };
 
   const handleServiceToggle = (index: number) => {
-    const newServices = [...services];
-    newServices[index].selected = !newServices[index].selected;
-    setServices(newServices);
+    setServices((prev) => {
+      const copy = [...prev];
+      copy[index].selected = !copy[index].selected;
+      return copy;
+    });
   };
 
   const handleServiceRate = (index: number, rate: string) => {
-    const newServices = [...services];
-    newServices[index].rate = rate;
-    setServices(newServices);
+    setServices((prev) => {
+      const copy = [...prev];
+      copy[index].rate = rate;
+      return copy;
+    });
   };
 
   const handleAvailabilityToggle = (index: number) => {
-    const newAvailability = [...availability];
-    newAvailability[index].enabled = !newAvailability[index].enabled;
-    setAvailability(newAvailability);
+    setAvailability((prev) => {
+      const copy = [...prev];
+      copy[index].enabled = !copy[index].enabled;
+      return copy;
+    });
   };
 
-  const handleTimeChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
-    const newAvailability = [...availability];
-    newAvailability[index][field] = value;
-    setAvailability(newAvailability);
+  const handleTimeChange = (
+    index: number,
+    field: "startTime" | "endTime",
+    value: string
+  ) => {
+    setAvailability((prev) => {
+      const copy = [...prev];
+      copy[index][field] = value;
+      return copy;
+    });
   };
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+  const next = () => setCurrentStep((s) => Math.min(totalSteps, s + 1));
+  const prev = () => setCurrentStep((s) => Math.max(1, s - 1));
 
+<<<<<<< HEAD
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
@@ -198,10 +222,73 @@ const ProviderProfileSetup: React.FC = () => {
       }
     } finally {
       setLoading(false);
+=======
+  // === MAIN SUBMIT: saves to /api/providers/me/profile then /api/providers/me/services ===
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      if (!token) {
+        alert("You must be logged in to save your profile. Please log in again.");
+        navigate("/login");
+        return;
+      }
+
+      // 1) Save core provider profile (including phone and name updates)
+      console.log("💾 Saving provider profile...");
+      await axios.post(`${API_BASE}/api/providers/me/profile`, {
+        bio,
+        yearsExperience,
+        hasInsurance,
+        insuranceProvider: hasInsurance ? insuranceProvider : null,
+        hasVehicle,
+        hasEquipment,
+        certifications,
+        address,
+        city,
+        state,
+        zipCode,
+        phone, // Save phone number to User table
+        name: fullName, // Update user's name if changed
+        isActive: true,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // 2) Save services (convert dollars -> cents)
+      const selected = services
+        .filter((s) => s.selected && s.rate.trim() !== "")
+        .map((s) => ({
+          serviceName: s.name,
+          pricePerHour: Math.round(Number(s.rate) * 100), // cents
+          durationMin: 60, // default; make configurable if you like
+        }));
+
+      console.log("💾 Saving provider services...", selected);
+      await axios.post(`${API_BASE}/api/providers/me/services`, { services: selected }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log("✅ Profile saved successfully!");
+      alert("Profile created successfully! Redirecting to dashboard...");
+      // Refresh the page to ensure profileComplete is updated
+      window.location.href = "/provider/home";
+    } catch (err: any) {
+      console.error("❌ Error saving profile:", err);
+      const errorMessage = err.response?.data?.error || err.message || "Unknown error";
+      console.error("Error details:", errorMessage);
+      alert(`Failed to save profile: ${errorMessage}. Please check the console for details.`);
+>>>>>>> upstream/main
     }
   };
 
-  const renderStepContent = () => {
+  const renderStep = () => {
     switch (currentStep) {
       case 1:
         return (
@@ -317,7 +404,9 @@ const ProviderProfileSetup: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Tell customers about yourself, your experience, and what makes you great at what you do..."
                 />
-                <p className="text-sm text-gray-500 mt-1">{bio.length}/500 characters</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {bio.length}/500 characters
+                </p>
               </div>
             </div>
           </div>
@@ -360,7 +449,10 @@ const ProviderProfileSetup: React.FC = () => {
                     onChange={(e) => setHasInsurance(e.target.checked)}
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="hasInsurance" className="ml-2 block text-sm font-medium text-gray-900">
+                  <label
+                    htmlFor="hasInsurance"
+                    className="ml-2 block text-sm font-medium text-gray-900"
+                  >
                     I have liability insurance
                   </label>
                 </div>
@@ -377,31 +469,29 @@ const ProviderProfileSetup: React.FC = () => {
               </div>
 
               <div className="md:col-span-2 space-y-3">
-                <div className="flex items-center">
+                <label className="flex items-center">
                   <input
                     type="checkbox"
-                    id="hasVehicle"
                     checked={hasVehicle}
                     onChange={(e) => setHasVehicle(e.target.checked)}
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="hasVehicle" className="ml-2 block text-sm font-medium text-gray-900">
+                  <span className="ml-2 text-sm font-medium text-gray-900">
                     I have my own vehicle
-                  </label>
-                </div>
+                  </span>
+                </label>
 
-                <div className="flex items-center">
+                <label className="flex items-center">
                   <input
                     type="checkbox"
-                    id="hasEquipment"
                     checked={hasEquipment}
                     onChange={(e) => setHasEquipment(e.target.checked)}
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="hasEquipment" className="ml-2 block text-sm font-medium text-gray-900">
-                    I have my own cleaning equipment and supplies
-                  </label>
-                </div>
+                  <span className="ml-2 text-sm font-medium text-gray-900">
+                    I bring my own cleaning equipment and supplies
+                  </span>
+                </label>
               </div>
 
               <div className="md:col-span-2">
@@ -429,25 +519,28 @@ const ProviderProfileSetup: React.FC = () => {
             </h3>
 
             <p className="text-gray-600">
-              Select the services you offer and set your hourly rate for each. You can always update these later.
+              Select the services you offer and set your hourly rate for each.
+              You can always update these later.
             </p>
 
             <div className="space-y-4">
               {services.map((service, index) => (
-                <div key={index} className="border border-gray-300 rounded-lg p-4 hover:border-indigo-500 transition-colors">
+                <div
+                  key={service.name}
+                  className="border border-gray-300 rounded-lg p-4 hover:border-indigo-500 transition-colors"
+                >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center flex-1">
+                    <label className="flex items-center flex-1">
                       <input
                         type="checkbox"
-                        id={`service-${index}`}
                         checked={service.selected}
                         onChange={() => handleServiceToggle(index)}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <label htmlFor={`service-${index}`} className="ml-3 block text-sm font-medium text-gray-900">
+                      <span className="ml-3 text-sm font-medium text-gray-900">
                         {service.name}
-                      </label>
-                    </div>
+                      </span>
+                    </label>
 
                     {service.selected && (
                       <div className="flex items-center">
@@ -455,12 +548,12 @@ const ProviderProfileSetup: React.FC = () => {
                         <input
                           type="number"
                           min="0"
-                          step="5"
+                          step="1"
                           value={service.rate}
                           onChange={(e) => handleServiceRate(index, e.target.value)}
                           className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           placeholder="45"
-                          required={service.selected}
+                          required
                         />
                         <span className="text-gray-700 ml-2">/hour</span>
                       </div>
@@ -472,7 +565,8 @@ const ProviderProfileSetup: React.FC = () => {
 
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
               <p className="text-sm text-indigo-800">
-                <strong>Pricing Tip:</strong> Research competitive rates in your area. The average hourly rate for cleaning services ranges from $35-$65 per hour depending on the service type and your experience level.
+                <strong>Pricing Tip:</strong> Check local competitors. Typical rates range
+                from $35 to $65/hour depending on the service and experience.
               </p>
             </div>
           </div>
@@ -487,25 +581,24 @@ const ProviderProfileSetup: React.FC = () => {
             </h3>
 
             <p className="text-gray-600">
-              Set your weekly schedule. You can always update this and block specific dates later in your calendar.
+              Set your weekly schedule. (Saving availability can be added later.)
             </p>
 
             <div className="space-y-3">
               {availability.map((slot, index) => (
-                <div key={index} className="border border-gray-300 rounded-lg p-4">
+                <div key={slot.day} className="border border-gray-300 rounded-lg p-4">
                   <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center">
+                    <label className="flex items-center">
                       <input
                         type="checkbox"
-                        id={`day-${index}`}
                         checked={slot.enabled}
                         onChange={() => handleAvailabilityToggle(index)}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <label htmlFor={`day-${index}`} className="ml-3 block text-sm font-medium text-gray-900 w-24">
+                      <span className="ml-3 text-sm font-medium text-gray-900 w-24">
                         {slot.day}
-                      </label>
-                    </div>
+                      </span>
+                    </label>
 
                     {slot.enabled && (
                       <div className="flex items-center gap-4">
@@ -514,7 +607,9 @@ const ProviderProfileSetup: React.FC = () => {
                           <input
                             type="time"
                             value={slot.startTime}
-                            onChange={(e) => handleTimeChange(index, 'startTime', e.target.value)}
+                            onChange={(e) =>
+                              handleTimeChange(index, "startTime", e.target.value)
+                            }
                             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           />
                         </div>
@@ -522,7 +617,9 @@ const ProviderProfileSetup: React.FC = () => {
                         <input
                           type="time"
                           value={slot.endTime}
-                          onChange={(e) => handleTimeChange(index, 'endTime', e.target.value)}
+                          onChange={(e) =>
+                            handleTimeChange(index, "endTime", e.target.value)
+                          }
                           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       </div>
@@ -594,7 +691,7 @@ const ProviderProfileSetup: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  A clear, professional headshot helps build trust with customers
+                  A clear, professional headshot helps build trust with customers.
                 </p>
               </div>
 
@@ -609,9 +706,6 @@ const ProviderProfileSetup: React.FC = () => {
                   onChange={(e) => setWorkPhotos(Array.from(e.target.files || []))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Upload up to 10 photos of your best work (before/after shots work great!)
-                </p>
                 {workPhotos.length > 0 && (
                   <p className="text-sm text-indigo-600 mt-2">
                     {workPhotos.length} photo(s) selected
@@ -635,9 +729,6 @@ const ProviderProfileSetup: React.FC = () => {
                       onChange={(e) => setIdDocument(e.target.files?.[0] || null)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
-                    <p className="text-sm text-gray-500 mt-1">
-                      Driver's license, passport, or national ID card
-                    </p>
                   </div>
 
                   {hasInsurance && (
@@ -651,16 +742,20 @@ const ProviderProfileSetup: React.FC = () => {
                         onChange={(e) => setInsuranceDocument(e.target.files?.[0] || null)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Upload your liability insurance certificate
-                      </p>
                     </div>
                   )}
                 </div>
 
+<<<<<<< HEAD
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
                   <p className="text-sm text-blue-800">
                     <strong>Note:</strong> Photos and documents are optional. You can complete your profile without them and start accepting bookings immediately. You can always upload them later to build more trust with customers.
+=======
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Verification:</strong> Document upload is UI-only in this version.
+                    We’ll add file upload endpoints next.
+>>>>>>> upstream/main
                   </p>
                 </div>
               </div>
@@ -678,13 +773,15 @@ const ProviderProfileSetup: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Complete Your Provider Profile</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Complete Your Provider Profile
+          </h1>
           <p className="text-lg text-gray-600">
-            Let's get you set up to start accepting bookings
+            Let’s get you set up to start accepting bookings
           </p>
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
@@ -702,6 +799,7 @@ const ProviderProfileSetup: React.FC = () => {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -710,15 +808,19 @@ const ProviderProfileSetup: React.FC = () => {
         )}
 
         {/* Form Card */}
+=======
+        {/* Form */}
+>>>>>>> upstream/main
         <Card>
-          <form onSubmit={currentStep === totalSteps ? handleSubmit : (e) => e.preventDefault()}>
-            {renderStepContent()}
+          <form
+            onSubmit={currentStep === totalSteps ? handleSubmit : (e) => e.preventDefault()}
+          >
+            {renderStep()}
 
-            {/* Navigation Buttons */}
             <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={handlePrevious}
+                onClick={prev}
                 disabled={currentStep === 1}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -728,7 +830,7 @@ const ProviderProfileSetup: React.FC = () => {
               {currentStep < totalSteps ? (
                 <button
                   type="button"
-                  onClick={handleNext}
+                  onClick={next}
                   className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
                 >
                   Next Step
@@ -757,22 +859,24 @@ const ProviderProfileSetup: React.FC = () => {
           </form>
         </Card>
 
-        {/* Steps Overview */}
+        {/* Step badges */}
         <div className="mt-8 grid grid-cols-5 gap-4">
-          {['Basic Info', 'Professional', 'Services', 'Availability', 'Photos'].map((label, index) => (
-            <div
-              key={index}
-              className={`text-center p-3 rounded-lg transition-colors ${
-                currentStep === index + 1
-                  ? 'bg-indigo-600 text-white'
-                  : currentStep > index + 1
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <div className="font-medium text-sm">{label}</div>
-            </div>
-          ))}
+          {["Basic Info", "Professional", "Services", "Availability", "Photos"].map(
+            (label, i) => (
+              <div
+                key={label}
+                className={`text-center p-3 rounded-lg transition-colors ${
+                  currentStep === i + 1
+                    ? "bg-indigo-600 text-white"
+                    : currentStep > i + 1
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <div className="font-medium text-sm">{label}</div>
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>
@@ -780,4 +884,3 @@ const ProviderProfileSetup: React.FC = () => {
 };
 
 export default ProviderProfileSetup;
-

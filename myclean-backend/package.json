@@ -5,24 +5,19 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc && prisma generate",
-    "start": "node init-db.js && node dist/index.js",
+    "build": "prisma generate && tsc",
+    "postbuild": "tsc-alias",
+    "prestart": "prisma migrate deploy",
+    "start": "node dist/index.js",
     "start:dev": "tsx src/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push",
-    "seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "seed": "prisma db seed",
+    "remove-test-provider": "tsx scripts/remove-test-provider.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.17.0",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.23",
-    "@types/helmet": "^0.0.48",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^22.18.13",
-    "@types/socket.io": "^3.0.1",
+    "@prisma/client": "^6.18.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
@@ -30,18 +25,28 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
-    "prisma": "^6.17.0",
     "socket.io": "^4.8.1",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "@types/helmet": "^0.0.48",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.19.24",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1"
+    "prisma": "^6.18.0",
+    "tailwindcss": "^3.4.1",
+    "tsc-alias": "^1.8.8",
+    "typescript": "^5.9.3"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=18 <23"
   }
 }

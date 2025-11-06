@@ -31,28 +31,29 @@ model User {
 
 // Provider-specific information
 model ProviderProfile {
-  id                Int                 @id @default(autoincrement())
-  userId            Int                 @unique
+  id                Int      @id @default(autoincrement())
+  userId            Int      @unique
   bio               String?
   yearsExperience   String?
-  hasInsurance      Boolean             @default(false)
-  insuranceProvider String?
-  hasVehicle        Boolean             @default(false)
-  hasEquipment      Boolean             @default(false)
+  hasInsurance      Boolean   @default(false)
+  hasVehicle        Boolean   @default(false)
+  hasEquipment      Boolean   @default(false)
   certifications    String?
   address           String?
   city              String?
   state             String?
   zipCode           String?
-  serviceRadius     Int                 @default(10) // in km
-  isVerified        Boolean             @default(false)
-  isActive          Boolean             @default(true)
-  profileComplete   Boolean             @default(false)
-  averageRating     Float               @default(0)
-  totalReviews      Int                 @default(0)
-  totalBookings     Int                 @default(0)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  serviceRadius     Int       @default(10)
+  isVerified        Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  profileComplete   Boolean   @default(false)
+  averageRating     Float     @default(0)
+  totalReviews      Int       @default(0)
+  totalBookings     Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  insuranceProvider String?
+
   
   // Relations
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,87 +1,187 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaCalendar, FaClock, FaMapMarkerAlt, FaStar, FaComments } from 'react-icons/fa';
+import { format } from 'date-fns';
+import axios from 'axios';
 import Card from '../../components/Card';
 import Modal from '../../components/Modal';
-import { format } from 'date-fns';
+import { useAuth } from '../../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Booking {
   id: number;
-  providerName: string;
-  providerImage: string;
-  service: string;
-  date: string;
-  time: string;
-  duration: number;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
   address: string;
-  status: 'upcoming' | 'completed' | 'cancelled';
+  city: string;
+  state: string;
+  zipCode: string;
+  status: string;
   totalPrice: number;
-  canReview: boolean;
+  specialInstructions?: string | null;
+  service: {
+    id: number;
+    name: string;
+    description?: string | null;
+  };
+  provider: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    profileImage?: string | null;
+  };
+  customer: {
+    id: number;
+    name: string;
+  };
+  review?: any;
 }
 
+interface Message {
+  id: number;
+  bookingId: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+const STATUS_FILTERS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'ACCEPTED', label: 'Accepted' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+  { key: 'DECLINED', label: 'Declined' },
+] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number]['key'];
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value);
+};
+
+const getStatusClass = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'ACCEPTED':
+      return 'bg-blue-100 text-blue-800';
+    case 'COMPLETED':
+      return 'bg-green-100 text-green-800';
+    case 'CANCELLED':
+      return 'bg-red-100 text-red-800';
+    case 'DECLINED':
+      return 'bg-gray-100 text-gray-700';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const statusLabel = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 'Pending';
+    case 'ACCEPTED':
+      return 'Accepted';
+    case 'COMPLETED':
+      return 'Completed';
+    case 'CANCELLED':
+      return 'Cancelled';
+    case 'DECLINED':
+      return 'Declined';
+    default:
+      return status;
+  }
+};
+
+const getAvatar = (name: string, profileImage?: string | null) => {
+  if (profileImage && profileImage.trim()) return profileImage;
+  const encodedName = encodeURIComponent(name);
+  return `https://ui-avatars.com/api/?name=${encodedName}&background=1d4ed8&color=ffffff`;
+};
+
 const MyBookings: React.FC = () => {
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
+  const { user, isCustomer } = useAuth();
+  const location = useLocation();
+  const bookingState = location.state as { bookingSuccess?: boolean; providerName?: string; serviceName?: string } | null;
+  const navigate = useNavigate();
+
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filter, setFilter] = useState<StatusFilter>('ALL');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
   const [message, setMessage] = useState('');
+  const [bookingMessages, setBookingMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [pageMessage, setPageMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
-  // Mock bookings data
-  const bookings: Booking[] = [
-    {
-      id: 1,
-      providerName: 'Sarah Johnson',
-      providerImage: '/api/placeholder/50/50',
-      service: 'Deep Cleaning',
-      date: '2024-01-25',
-      time: '10:00 AM',
-      duration: 3,
-      address: '123 Main St, Sydney NSW 2000',
-      status: 'upcoming',
-      totalPrice: 135,
-      canReview: false,
-    },
-    {
-      id: 2,
-      providerName: 'Michael Chen',
-      providerImage: '/api/placeholder/50/50',
-      service: 'Regular Cleaning',
-      date: '2024-01-15',
-      time: '02:00 PM',
-      duration: 2,
-      address: '456 Oak Ave, Melbourne VIC 3000',
-      status: 'completed',
-      totalPrice: 100,
-      canReview: true,
-    },
-    {
-      id: 3,
-      providerName: 'Emma Wilson',
-      providerImage: '/api/placeholder/50/50',
-      service: 'Move-out Cleaning',
-      date: '2024-01-10',
-      time: '09:00 AM',
-      duration: 4,
-      address: '789 Pine Rd, Brisbane QLD 4000',
-      status: 'cancelled',
-      totalPrice: 160,
-      canReview: false,
-    },
-  ];
+  useEffect(() => {
+    if (bookingState?.bookingSuccess) {
+      const providerName = bookingState.providerName ?? 'your provider';
+      const serviceName = bookingState.serviceName ?? 'the service';
+      setPageMessage({
+        type: 'success',
+        text: `Booking request sent successfully for ${serviceName} with ${providerName}.`,
+      });
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [bookingState, location.pathname, navigate]);
 
-  const filteredBookings = filter === 'all' 
-    ? bookings 
-    : bookings.filter(b => b.status === filter);
+  useEffect(() => {
+    if (!pageMessage) return;
+    const timer = window.setTimeout(() => setPageMessage(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [pageMessage]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchBookings = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await axios.get(`/api/bookings/user/${user.id}?role=CUSTOMER`);
+        const allBookings: Booking[] = response.data?.bookings ?? [];
+        setBookings(allBookings);
+      } catch (err) {
+        console.error('Error fetching bookings', err);
+        setError('Failed to load bookings. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, [user]);
+
+  const filteredBookings = useMemo(() => {
+    if (filter === 'ALL') return bookings;
+    return bookings.filter((booking) => booking.status === filter);
+  }, [bookings, filter]);
 
   const handleReview = (booking: Booking) => {
     setSelectedBooking(booking);
+    setRating(0);
+    setReview('');
+    setReviewPhotos([]);
     setShowReviewModal(true);
   };
 
@@ -94,31 +194,79 @@ const MyBookings: React.FC = () => {
     setReviewPhotos([]);
   };
 
-  const handleMessageProvider = (booking: Booking) => {
-    setSelectedBooking(booking);
-    setShowMessageModal(true);
+  const loadMessages = async (booking: Booking) => {
+    if (!user) return;
+    setMessagesLoading(true);
+    setMessagesError(null);
+
+    try {
+      const response = await axios.get(`/api/messages/booking/${booking.id}`);
+      const messages: Message[] = response.data?.messages ?? [];
+      setBookingMessages(messages);
+
+      await axios.patch(`/api/messages/booking/${booking.id}/read`, { userId: user.id }).catch((err) => {
+        console.error('Failed to mark messages as read', err);
+      });
+    } catch (err) {
+      console.error('Failed to load booking messages', err);
+      setMessagesError('Failed to load messages.');
+      setBookingMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
   };
 
-  const submitMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log({ bookingId: selectedBooking?.id, message });
-    // TODO: Integrate with backend API
-    alert('Message sent to provider successfully!');
-    setShowMessageModal(false);
+  const handleMessageProvider = (booking: Booking) => {
+    setSelectedBooking(booking);
     setMessage('');
+    setShowMessageModal(true);
+    void loadMessages(booking);
+  };
+
+  const submitMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBooking || !user) return;
+
+    const trimmed = message.trim();
+    if (!trimmed) return;
+
+    try {
+      const response = await axios.post('/api/messages', {
+        bookingId: selectedBooking.id,
+        senderId: user.id,
+        receiverId: selectedBooking.provider.id,
+        content: trimmed,
+      });
+
+      const sent: Message | undefined = response.data?.message;
+      if (sent) {
+        setBookingMessages((prev) => [...prev, sent]);
+      }
+
+      setMessage('');
+    } catch (err) {
+      console.error('Failed to send message', err);
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   const handleReschedule = (booking: Booking) => {
     setSelectedBooking(booking);
-    setNewDate(booking.date);
-    setNewTime(booking.time);
+    setNewDate(booking.bookingDate ? booking.bookingDate.split('T')[0] : '');
+    setNewTime(booking.startTime);
     setShowRescheduleModal(true);
   };
 
   const submitReschedule = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ bookingId: selectedBooking?.id, newDate, newTime });
-    // TODO: Integrate with backend API
+    if (!selectedBooking) return;
+
+    console.log({
+      bookingId: selectedBooking.id,
+      newDate,
+      newTime,
+    });
+
     alert('Reschedule request submitted successfully!');
     setShowRescheduleModal(false);
     setNewDate('');
@@ -127,141 +275,186 @@ const MyBookings: React.FC = () => {
 
   const handleCancelBooking = (booking: Booking) => {
     setSelectedBooking(booking);
+    setCancelReason('');
     setShowCancelModal(true);
   };
 
   const submitCancellation = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ bookingId: selectedBooking?.id, cancelReason });
-    // TODO: Integrate with backend API
-    alert('Booking cancelled successfully!');
+    if (!selectedBooking || !user) return;
+
+    console.log({ bookingId: selectedBooking.id, cancelReason });
+    alert('Booking cancellation request submitted.');
     setShowCancelModal(false);
     setCancelReason('');
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-600">Please log in to view your bookings.</p>
+      </div>
+    );
+  }
+
+  if (!isCustomer) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-600">Bookings are only available for customers.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="text-gray-600 mt-4">Loading your bookings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Bookings</h1>
 
-        {/* Filter Tabs */}
+        {pageMessage && (
+          <div
+            className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
+              pageMessage.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : pageMessage.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}
+          >
+            {pageMessage.text}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg border border-red-200">
+            {error}
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <div className="flex flex-wrap gap-2">
-            {['all', 'upcoming', 'completed', 'cancelled'].map(status => (
+            {STATUS_FILTERS.map(({ key, label }) => (
               <button
-                key={status}
-                onClick={() => setFilter(status as typeof filter)}
+                key={key}
+                onClick={() => setFilter(key)}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === status
+                  filter === key
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Bookings List */}
-        <div className="space-y-4">
-          {filteredBookings.map(booking => (
-            <Card key={booking.id}>
-              <div className="flex flex-col md:flex-row justify-between">
-                <div className="flex items-start space-x-4 flex-1">
-                  <img
-                    src={booking.providerImage}
-                    alt={booking.providerName}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-gray-900">{booking.providerName}</h3>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
+        {filteredBookings.length === 0 ? (
+          <Card>
+            <div className="text-center py-12">
+              <p className="text-gray-600">No bookings found for this filter.</p>
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredBookings.map((booking) => (
+              <Card key={booking.id}>
+                <div className="flex flex-col md:flex-row justify-between">
+                  <div className="flex items-start space-x-4 flex-1">
+                    <img
+                      src={getAvatar(booking.provider.name, booking.provider.profileImage)}
+                      alt={booking.provider.name}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-semibold text-gray-900">{booking.provider.name}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusClass(booking.status)}`}>
+                          {statusLabel(booking.status)}
+                        </span>
+                      </div>
+
+                      <p className="text-gray-600 mb-3">{booking.service.name}</p>
+
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-center">
+                          <FaCalendar className="mr-2 text-blue-600" />
+                          {booking.bookingDate ? format(new Date(booking.bookingDate), 'MMMM d, yyyy') : 'TBD'}
+                        </div>
+                        <div className="flex items-center">
+                          <FaClock className="mr-2 text-blue-600" />
+                          {booking.startTime} - {booking.endTime}
+                        </div>
+                        <div className="flex items-center">
+                          <FaMapMarkerAlt className="mr-2 text-blue-600" />
+                          {`${booking.address}, ${booking.city}, ${booking.state} ${booking.zipCode}`}
+                        </div>
+                      </div>
+
+                      {booking.specialInstructions && (
+                        <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
+                          <p className="font-medium">Special Instructions</p>
+                          <p>{booking.specialInstructions}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          onClick={() => handleMessageProvider(booking)}
+                          className="inline-flex items-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                        >
+                          <FaComments className="mr-2" />
+                          Message Provider
+                        </button>
+
+                        <button
+                          onClick={() => handleReschedule(booking)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Reschedule
+                        </button>
+
+                        <button
+                          onClick={() => handleCancelBooking(booking)}
+                          className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          Cancel Booking
+                        </button>
+
+                        {booking.status === 'COMPLETED' && !booking.review && (
+                          <button
+                            onClick={() => handleReview(booking)}
+                            className="inline-flex items-center px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
+                          >
+                            <FaStar className="mr-2" />
+                            Leave Review
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    
-                    <p className="text-gray-600 mb-3">{booking.service}</p>
-                    
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <FaCalendar className="mr-2 text-blue-600" />
-                        {format(new Date(booking.date), 'MMMM d, yyyy')}
-                      </div>
-                      <div className="flex items-center">
-                        <FaClock className="mr-2 text-blue-600" />
-                        {booking.time} ({booking.duration} hours)
-                      </div>
-                      <div className="flex items-center">
-                        <FaMapMarkerAlt className="mr-2 text-blue-600" />
-                        {booking.address}
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4">
-                      <span className="text-2xl font-bold text-blue-600">${booking.totalPrice}</span>
+                  </div>
+
+                  <div className="mt-4 md:mt-0 md:w-48">
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-blue-600">Total Price</p>
+                      <p className="text-2xl font-semibold text-blue-700">{formatCurrency(booking.totalPrice)}</p>
+                      <p className="text-xs text-blue-500 mt-2">Includes GST and service fees</p>
                     </div>
                   </div>
                 </div>
-                
-                <div className="mt-4 md:mt-0 md:ml-6 flex flex-col space-y-2 min-w-[200px]">
-                  {booking.status === 'upcoming' && (
-                    <>
-                      <button 
-                        onClick={() => handleMessageProvider(booking)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                      >
-                        <FaComments className="mr-2" /> Message Provider
-                      </button>
-                      <button 
-                        onClick={() => handleReschedule(booking)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Reschedule
-                      </button>
-                      <button 
-                        onClick={() => handleCancelBooking(booking)}
-                        className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        Cancel Booking
-                      </button>
-                    </>
-                  )}
-                  
-                  {booking.status === 'completed' && booking.canReview && (
-                    <button
-                      onClick={() => handleReview(booking)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                    >
-                      <FaStar className="mr-2" /> Leave Review
-                    </button>
-                  )}
-                  
-                  {booking.status === 'completed' && (
-                    <button className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-                      Book Again
-                    </button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {filteredBookings.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-500 text-lg">No {filter !== 'all' && filter} bookings found.</p>
+              </Card>
+            ))}
           </div>
         )}
       </div>
@@ -270,36 +463,29 @@ const MyBookings: React.FC = () => {
       <Modal
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
-        title="Leave a Review"
+        title={`Rate ${selectedBooking?.provider.name}`}
       >
         <form onSubmit={submitReview} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rating
-            </label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(star => (
+            <p className="text-sm text-gray-600 mb-3">How satisfied were you with the service?</p>
+            <div className="flex space-x-2">
+              {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className="focus:outline-none"
+                  className={`text-3xl focus:outline-none ${
+                    star <= rating ? 'text-yellow-400' : 'text-gray-300'
+                  }`}
                 >
-                  <FaStar
-                    size={32}
-                    className={`${
-                      star <= rating ? 'text-yellow-400' : 'text-gray-300'
-                    } hover:text-yellow-400 transition-colors`}
-                  />
+                  ★
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Your Review
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
             <textarea
               value={review}
               onChange={(e) => setReview(e.target.value)}
@@ -311,9 +497,7 @@ const MyBookings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Add Photos (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Add Photos (Optional)</label>
             <input
               type="file"
               accept="image/*"
@@ -347,39 +531,67 @@ const MyBookings: React.FC = () => {
       <Modal
         isOpen={showMessageModal}
         onClose={() => setShowMessageModal(false)}
-        title={`Message ${selectedBooking?.providerName}`}
+        title={`Conversation with ${selectedBooking?.provider.name}`}
       >
-        <form onSubmit={submitMessage} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Your Message
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={6}
-              required
-              placeholder="Type your message to the provider..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        <div className="space-y-4">
+          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
+            {messagesLoading ? (
+              <p className="text-gray-500">Loading messages...</p>
+            ) : messagesError ? (
+              <p className="text-red-600">{messagesError}</p>
+            ) : bookingMessages.length === 0 ? (
+              <p className="text-gray-500 text-center">No messages yet. Start the conversation.</p>
+            ) : (
+              bookingMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex mb-3 ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-xs px-3 py-2 rounded-lg ${
+                      msg.senderId === user.id ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'
+                    }`}
+                  >
+                    <p>{msg.content}</p>
+                    <p className="text-xs mt-1 text-gray-200">
+                      {format(new Date(msg.createdAt), 'MMM d, h:mm a')}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setShowMessageModal(false)}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Send Message
-            </button>
-          </div>
-        </form>
+          <form onSubmit={submitMessage} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Message</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                required
+                placeholder="Type your message to the provider..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setShowMessageModal(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Send Message
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
 
       {/* Reschedule Modal */}
@@ -390,9 +602,7 @@ const MyBookings: React.FC = () => {
       >
         <form onSubmit={submitReschedule} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Date
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">New Date</label>
             <input
               type="date"
               value={newDate}
@@ -404,9 +614,7 @@ const MyBookings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Time
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">New Time</label>
             <input
               type="time"
               value={newTime}
@@ -418,8 +626,7 @@ const MyBookings: React.FC = () => {
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> Your reschedule request will be sent to the provider for approval. 
-              You'll be notified once they respond.
+              Reschedule requests are subject to provider availability. We will notify you once the provider responds.
             </p>
           </div>
 
@@ -435,13 +642,13 @@ const MyBookings: React.FC = () => {
               type="submit"
               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Request Reschedule
+              Submit Request
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Cancel Booking Modal */}
+      {/* Cancel Modal */}
       <Modal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}
@@ -449,23 +656,23 @@ const MyBookings: React.FC = () => {
       >
         <form onSubmit={submitCancellation} className="space-y-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-800">
-              <strong>Warning:</strong> Cancelling this booking may incur cancellation fees depending on 
-              the provider's policy and how close to the booking date you are.
+            <p className="text-sm text-red-700 mb-2">
+              Cancelling a booking may incur a cancellation fee if done within 24 hours of the scheduled time.
+            </p>
+            <p className="text-sm text-red-700">
+              Please provide a reason for the cancellation so we can inform the provider.
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reason for Cancellation
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Cancellation</label>
             <textarea
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               rows={4}
               required
-              placeholder="Please provide a reason for cancellation..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Let the provider know why you're cancelling..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
             />
           </div>
 
@@ -481,7 +688,7 @@ const MyBookings: React.FC = () => {
               type="submit"
               className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
-              Cancel Booking
+              Confirm Cancellation
             </button>
           </div>
         </form>
@@ -491,4 +698,3 @@ const MyBookings: React.FC = () => {
 };
 
 export default MyBookings;
-
