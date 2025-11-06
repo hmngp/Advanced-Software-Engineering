@@ -19,6 +19,9 @@ import Card from "../../components/Card";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 
+// Get API base URL
+const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/+$/, '') || 'http://localhost:4000';
+
 type TimeSlot = {
   day: string;
   enabled: boolean;
@@ -34,7 +37,7 @@ type Service = {
 
 const ProviderProfileSetup: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
@@ -131,8 +134,15 @@ const ProviderProfileSetup: React.FC = () => {
     e.preventDefault();
 
     try {
+      if (!token) {
+        alert("You must be logged in to save your profile. Please log in again.");
+        navigate("/login");
+        return;
+      }
+
       // 1) Save core provider profile
-      await axios.post("/api/providers/me/profile", {
+      console.log("💾 Saving provider profile...");
+      await axios.post(`${API_BASE}/api/providers/me/profile`, {
         bio,
         yearsExperience,
         hasInsurance,
@@ -145,6 +155,11 @@ const ProviderProfileSetup: React.FC = () => {
         state,
         zipCode,
         isActive: true,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       // 2) Save services (convert dollars -> cents)
@@ -156,14 +171,23 @@ const ProviderProfileSetup: React.FC = () => {
           durationMin: 60, // default; make configurable if you like
         }));
 
-      await axios.post("/api/providers/me/services", { services: selected });
+      console.log("💾 Saving provider services...", selected);
+      await axios.post(`${API_BASE}/api/providers/me/services`, { services: selected }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
+      console.log("✅ Profile saved successfully!");
       alert("Profile created successfully! Redirecting to dashboard...");
       // Refresh the page to ensure profileComplete is updated
       window.location.href = "/provider/home";
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save profile. Please try again.");
+    } catch (err: any) {
+      console.error("❌ Error saving profile:", err);
+      const errorMessage = err.response?.data?.error || err.message || "Unknown error";
+      console.error("Error details:", errorMessage);
+      alert(`Failed to save profile: ${errorMessage}. Please check the console for details.`);
     }
   };
 
