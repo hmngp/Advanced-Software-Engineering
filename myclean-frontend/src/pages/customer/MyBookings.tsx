@@ -5,6 +5,7 @@ import axios from 'axios';
 import Card from '../../components/Card';
 import Modal from '../../components/Modal';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Booking {
   id: number;
@@ -104,6 +105,9 @@ const getAvatar = (name: string, profileImage?: string | null) => {
 
 const MyBookings: React.FC = () => {
   const { user, isCustomer } = useAuth();
+  const location = useLocation();
+  const bookingState = location.state as { bookingSuccess?: boolean; providerName?: string; serviceName?: string } | null;
+  const navigate = useNavigate();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<StatusFilter>('ALL');
@@ -126,6 +130,25 @@ const MyBookings: React.FC = () => {
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [pageMessage, setPageMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (bookingState?.bookingSuccess) {
+      const providerName = bookingState.providerName ?? 'your provider';
+      const serviceName = bookingState.serviceName ?? 'the service';
+      setPageMessage({
+        type: 'success',
+        text: `Booking request sent successfully for ${serviceName} with ${providerName}.`,
+      });
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [bookingState, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!pageMessage) return;
+    const timer = window.setTimeout(() => setPageMessage(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [pageMessage]);
 
   useEffect(() => {
     if (!user) return;
@@ -297,6 +320,20 @@ const MyBookings: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Bookings</h1>
+
+        {pageMessage && (
+          <div
+            className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
+              pageMessage.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : pageMessage.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}
+          >
+            {pageMessage.text}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg border border-red-200">

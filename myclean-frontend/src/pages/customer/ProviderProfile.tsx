@@ -72,6 +72,14 @@ const ProviderProfile: React.FC = () => {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [selectedTab, setSelectedTab] = useState<'about' | 'services' | 'reviews'>('services');
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [pageMessage, setPageMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!pageMessage) return;
+    const timer = setTimeout(() => setPageMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [pageMessage]);
 
   useEffect(() => {
     async function load() {
@@ -142,9 +150,10 @@ const ProviderProfile: React.FC = () => {
       return;
     }
     if (user.role !== 'CUSTOMER') {
-      alert('Only customers can book services');
+      setPageMessage({ type: 'error', text: 'Only customers can book services.' });
       return;
     }
+    setBookingMessage(null);
     setSelectedService(service);
     setShowBookingModal(true);
   };
@@ -155,12 +164,13 @@ const ProviderProfile: React.FC = () => {
 
     const duration = calculateDurationHours();
     if (duration <= 0) {
-      alert('End time must be after start time');
+      setBookingMessage({ type: 'error', text: 'End time must be after start time.' });
       return;
     }
 
     try {
       setSubmittingBooking(true);
+      setBookingMessage(null);
       const totalPrice = calculateTotalPriceCents(); // cents
 
       const bookingData = {
@@ -179,15 +189,28 @@ const ProviderProfile: React.FC = () => {
       };
 
       await axios.post('/api/bookings', bookingData);
-      setShowBookingModal(false);
-      alert('Booking request sent successfully! The provider will review and respond soon.');
-      navigate('/my-bookings');
+      setBookingMessage({
+        type: 'success',
+        text: 'Booking request sent successfully! Redirecting to My Bookings...'
+      });
+      setTimeout(() => {
+        setBookingMessage(null);
+        setShowBookingModal(false);
+        navigate('/my-bookings', {
+          state: { bookingSuccess: true, providerName: provider.name, serviceName: selectedService.name },
+        });
+      }, 1600);
     } catch (err) {
       console.error('Error creating booking:', err);
-      alert('Failed to create booking. Please try again.');
+      setBookingMessage({ type: 'error', text: 'Failed to create booking. Please try again.' });
     } finally {
       setSubmittingBooking(false);
     }
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    setBookingMessage(null);
   };
 
   const availableTimes = [
@@ -231,6 +254,20 @@ const ProviderProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {pageMessage && (
+          <div
+            className={`mb-6 rounded-lg border px-4 py-3 text-sm font-medium ${
+              pageMessage.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : pageMessage.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}
+          >
+            {pageMessage.text}
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
@@ -408,11 +445,23 @@ const ProviderProfile: React.FC = () => {
       {/* Booking Modal */}
       <Modal
         isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
+        onClose={closeBookingModal}
         title={`Book ${selectedService?.name ?? 'service'}`}
         size="lg"
       >
         <form onSubmit={handleBooking} className="space-y-6">
+          {bookingMessage && (
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm font-medium ${
+                bookingMessage.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
+              {bookingMessage.text}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -556,7 +605,7 @@ const ProviderProfile: React.FC = () => {
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => setShowBookingModal(false)}
+              onClick={closeBookingModal}
               disabled={submittingBooking}
               className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
