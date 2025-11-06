@@ -2,10 +2,13 @@
 
 // In production, REACT_APP_API_URL must be set in Vercel environment variables
 // For local dev, it defaults to localhost
-const BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
+// Normalize BASE URL: remove trailing slash to avoid double slashes
+const BASE_RAW = process.env.REACT_APP_API_URL || "http://localhost:4000";
+const BASE = BASE_RAW.replace(/\/+$/, ''); // Remove trailing slashes
 
 // Debug logging
-console.log("🌐 API Base URL:", BASE);
+console.log("🌐 API Base URL (raw):", BASE_RAW);
+console.log("🌐 API Base URL (normalized):", BASE);
 console.log("🌐 NODE_ENV:", process.env.NODE_ENV);
 
 // Log a warning in production if API URL is not configured
@@ -27,18 +30,28 @@ export type Service = {
   };
 };
 
+// Helper function to build full URL, ensuring single slash between BASE and path
+function buildUrl(path: string): string {
+  // Ensure path starts with /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${BASE}${normalizedPath}`;
+}
+
 export async function get<T>(path: string): Promise<T> {
   try {
-    const res = await fetch(`${BASE}${path}`, { credentials: "include" });
+    const url = buildUrl(path);
+    console.log(`🔗 Fetching: ${url}`);
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) {
       const errorText = await res.text().catch(() => 'Unknown error');
-      console.error(`GET ${BASE}${path} failed:`, res.status, errorText);
+      console.error(`❌ GET ${url} failed:`, res.status, errorText);
       throw new Error(`GET ${path} failed: ${res.status} - ${errorText}`);
     }
     return res.json() as Promise<T>;
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      console.error(`Network error: Cannot reach ${BASE}${path}. Is the backend running?`);
+      const url = buildUrl(path);
+      console.error(`🌐 Network error: Cannot reach ${url}. Is the backend running?`);
       throw new Error(`Cannot connect to backend at ${BASE}. Please check your REACT_APP_API_URL configuration.`);
     }
     throw error;
@@ -46,13 +59,19 @@ export async function get<T>(path: string): Promise<T> {
 }
 
 export async function post<T>(path: string, body: any): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const url = buildUrl(path);
+  console.log(`📤 POST: ${url}`);
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Unknown error');
+    console.error(`❌ POST ${url} failed:`, res.status, errorText);
+    throw new Error(`POST ${path} failed: ${res.status} - ${errorText}`);
+  }
   return res.json() as Promise<T>;
 }
 
